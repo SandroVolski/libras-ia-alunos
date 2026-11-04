@@ -160,6 +160,7 @@ input[type=range]{accent-color:var(--ac);flex:1}
     <h2>Libras com IA</h2>
     <p>Escreva seu nome para começar. Ele aparece no placar do jogo e fica só neste aparelho.</p>
     <input id="nomeAluno" type="text" maxlength="14" placeholder="Seu nome" autocomplete="off" required>
+    <input id="salaCodigo" type="text" maxlength="4" placeholder="Código da sala (se o professor deu)" autocomplete="off" style="text-transform:uppercase">
     <button class="btn pri" type="submit">Entrar</button>
     <p>A câmera é usada só para reconhecer a sua mão aqui no celular. Nenhuma imagem é enviada.</p>
   </form>
@@ -185,6 +186,7 @@ input[type=range]{accent-color:var(--ac);flex:1}
   </nav>
   <div class="status">
     <span class="pill" id="pCam"><i></i>Câmera</span>
+    <span class="pill" id="pSala" hidden><i></i>Sala</span>
     <span class="pill" id="pIA"><i></i>IA</span>
     <span class="pill" id="pArd"><i></i>Arduino</span>
     <button class="btn" id="btnArduino">Conectar Arduino</button>
@@ -328,6 +330,13 @@ input[type=range]{accent-color:var(--ac);flex:1}
         <select id="sensib" aria-label="Cuidado ao reconhecer" style="background:var(--s2);color:inherit;border:1px solid var(--line);border-radius:11px;padding:9px 12px">
           <option value="0">Rápido</option><option value="1" selected>Normal</option><option value="2">Cuidadoso</option>
         </select>
+      </div>
+      <div class="card" id="salaCard">
+        <h3>Sala dos alunos</h3>
+        <p class="hint">Os alunos entram pelo celular. Você escolhe quem manda letras e palavras para o Arduino. Precisa de internet neste computador e nos celulares.</p>
+        <div class="row"><button class="btn pri" id="salaAbrir">Abrir sala</button><button class="btn" id="salaFechar" hidden>Fechar sala</button></div>
+        <div id="salaInfo" class="small" style="margin-top:8px"></div>
+        <div id="salaLista" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
       </div>
       <div class="card">
         <h3>Modo cofre</h3>
@@ -518,7 +527,7 @@ const sTick = () => tone(500, 60, 0, 'square', 0.03);
 let port = null, writer = null, readyAt = 0;
 const enc = new TextEncoder();
 function send(line) {
-  log.push(line);
+  log.push(line); try { salaEnvia(line); } catch (e) {}
   if (!writer || Date.now() < readyAt) return;
   writer.write(enc.encode(line + '\n')).catch(() => {});
 }
@@ -1233,6 +1242,82 @@ $('dinParar').addEventListener('click', () => dinStop(false));
 $('dinTreinar').addEventListener('click', dinTrain);
 $('dinApagar').addEventListener('click', () => { delete samplesDin[dinActive]; saveDin(); dinNet = null; dinClasses = []; renderDin(); if (Object.keys(samplesDin).length) dinTrain(); });
 
+/* =============== SALA DOS ALUNOS (celulares -> Arduino) =============== */
+// Os celulares publicam as mesmas linhas que o Arduino entende (L,A  P,OI  C ...) num canal da sala.
+// Este computador escuta, mostra a lista e repassa ao Arduino só as linhas de quem estiver "no ar".
+const SALA = { cli: null, code: '', alunos: new Map(), vivo: '' };
+const SALA_PERMITIDO = /^(L,[A-Z0-9_]|P,[A-Z0-9 ]{0,40}$|C$|A$|W$|F$|N,[0-9-]$)/;
+const SALA_BROKERS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
+const salaTopico = suf => 'autobotize-libras/' + SALA.code + '/' + suf;
+function carregaMqtt() {
+  if (window.mqtt) return Promise.resolve();
+  return new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js'; sc.onload = ok; sc.onerror = () => err(new Error('sem internet')); document.head.appendChild(sc); });
+}
+function salaConecta(i) {
+  return new Promise((ok, err) => {
+    const c = window.mqtt.connect(SALA_BROKERS[i], { reconnectPeriod: 4000, connectTimeout: 8000, clientId: 'prof-' + Math.random().toString(16).slice(2, 10) });
+    const t = setTimeout(() => { c.end(true); err(new Error('timeout')); }, 9000);
+    c.once('connect', () => { clearTimeout(t); ok(c); });
+    c.once('error', e => { clearTimeout(t); c.end(true); err(e); });
+  });
+}
+function salaRender() {
+  const box = $('salaLista'); box.innerHTML = '';
+  const agora = Date.now();
+  SALA.alunos.forEach((a, nome) => { if (agora - a.vis > 20000) SALA.alunos.delete(nome); });
+  if (!SALA.alunos.size) { box.innerHTML = '<div class="small">Nenhum aluno conectado ainda.</div>'; return; }
+  SALA.alunos.forEach((a, nome) => {
+    const row = document.createElement('div'); row.className = 'row'; row.style.cssText = 'align-items:center;gap:8px;flex-wrap:nowrap';
+    const tx = document.createElement('div'); tx.style.cssText = 'flex:1;min-width:0;overflow-wrap:anywhere';
+    tx.innerHTML = '<b></b> <span class="small"></span>'; tx.firstChild.textContent = nome; tx.lastChild.textContent = a.palavra ? '· ' + a.palavra : '';
+    const vivo = nome === SALA.vivo;
+    const b1 = document.createElement('button'); b1.className = 'btn' + (vivo ? ' pri' : ''); b1.textContent = vivo ? 'No ar' : 'Colocar no ar';
+    b1.addEventListener('click', () => { SALA.vivo = vivo ? '' : nome; send('C'); salaRender(); });
+    const b2 = document.createElement('button'); b2.className = 'btn'; b2.textContent = 'Tirar';
+    b2.addEventListener('click', () => { SALA.cli && SALA.cli.publish(salaTopico('down'), JSON.stringify({ kick: nome })); SALA.alunos.delete(nome); if (SALA.vivo === nome) SALA.vivo = ''; salaRender(); });
+    row.append(tx, b1, b2); box.appendChild(row);
+  });
+}
+function salaRecebe(msg) {
+  let d; try { d = JSON.parse(msg.toString()); } catch (e) { return; }
+  const nome = String(d.n || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 14); if (!nome) return;
+  const a = SALA.alunos.get(nome) || { palavra: '', vis: 0 }; a.vis = Date.now(); SALA.alunos.set(nome, a);
+  const l = typeof d.l === 'string' ? d.l.slice(0, 60) : '';
+  if (l && SALA_PERMITIDO.test(l)) {
+    if (l.startsWith('P,')) a.palavra = l.slice(2); else if (l === 'C') a.palavra = '';
+    if (nome === SALA.vivo) send(l);
+  }
+  salaRender();
+}
+async function salaAbrir() {
+  $('salaAbrir').disabled = true; $('salaInfo').textContent = 'Conectando…';
+  try {
+    await carregaMqtt();
+    let cli = null, ultimo = null;
+    for (let i = 0; i < SALA_BROKERS.length && !cli; i++) { try { cli = await salaConecta(i); } catch (e) { ultimo = e; } }
+    if (!cli) throw ultimo || new Error('falha');
+    const letras = 'BCDFGHJKLMNPQRSTVWXZ'; SALA.code = Array.from({ length: 4 }, () => letras[Math.floor(Math.random() * letras.length)]).join('');
+    SALA.cli = cli; SALA.alunos.clear(); SALA.vivo = '';
+    cli.on('message', (t, m) => { if (t === salaTopico('up')) salaRecebe(m); });
+    cli.subscribe(salaTopico('up'));
+    $('salaInfo').innerHTML = 'Sala aberta. Código: <b style="font-size:1.4rem;letter-spacing:.15em"></b><br>Os alunos abrem <b>arduino.autobotize.com</b> e digitam o código, ou usam o link <span class="small">arduino.autobotize.com/?sala=' + SALA.code + '</span>';
+    $('salaInfo').querySelector('b').textContent = SALA.code;
+    $('salaAbrir').hidden = true; $('salaFechar').hidden = false; salaRender();
+    SALA.timer = setInterval(salaRender, 3000);
+  } catch (e) {
+    $('salaInfo').textContent = 'Não consegui abrir a sala: ' + (e && e.message ? e.message : e) + '. Confira a internet deste computador.';
+    $('salaAbrir').disabled = false;
+  }
+}
+function salaFechar() {
+  clearInterval(SALA.timer);
+  if (SALA.cli) { try { SALA.cli.publish(salaTopico('down'), JSON.stringify({ fim: 1 })); SALA.cli.end(true); } catch (e) {} }
+  SALA.cli = null; SALA.alunos.clear(); SALA.vivo = ''; $('salaLista').innerHTML = ''; $('salaInfo').textContent = 'Sala fechada.';
+  $('salaAbrir').hidden = false; $('salaAbrir').disabled = false; $('salaFechar').hidden = true;
+}
+$('salaAbrir').addEventListener('click', salaAbrir);
+$('salaFechar').addEventListener('click', salaFechar);
+
 /* =============== MODO COFRE =============== */
 let cofreTimer = null;
 function cofreEnvia() { send($('cofreOn').checked ? 'T,1' : 'T,0'); }
@@ -1318,10 +1403,37 @@ $('fileBackup').addEventListener('change', e => {
 
 /* =============== versão dos alunos: modelo pronto =============== */
 let nomeAluno = '';
+const ALU = { cli: null, code: '', ativo: false, ts: [] };
+function salaEnvia(line) {
+  if (!ALU.ativo || !ALU.cli || !/^[LPCAWFN]/.test(line)) return;
+  const t = Date.now(); ALU.ts = ALU.ts.filter(x => t - x < 1000); if (ALU.ts.length >= 8) return; ALU.ts.push(t);
+  ALU.cli.publish('autobotize-libras/' + ALU.code + '/up', JSON.stringify({ n: nomeAluno, l: line }));
+}
+async function salaIniciar(code) {
+  if (code.length !== 4) return;
+  ALU.code = code; pill('pSala', 'warn', 'Sala ' + code + '…'); $('pSala').hidden = false;
+  try {
+    if (!window.mqtt) await new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js'; sc.onload = ok; sc.onerror = () => err(new Error('mqtt')); document.head.appendChild(sc); });
+    let cli = null;
+    for (let i = 0; i < SALA_BROKERS.length && !cli; i++) {
+      try { cli = await new Promise((ok, err) => { const c = window.mqtt.connect(SALA_BROKERS[i], { reconnectPeriod: 4000, connectTimeout: 8000, clientId: 'al-' + Math.random().toString(16).slice(2, 10) }); const t = setTimeout(() => { c.end(true); err(new Error('timeout')); }, 9000); c.once('connect', () => { clearTimeout(t); ok(c); }); c.once('error', e => { clearTimeout(t); c.end(true); err(e); }); }); } catch (e) {}
+    }
+    if (!cli) throw new Error('sem conexão');
+    ALU.cli = cli; ALU.ativo = true;
+    cli.subscribe('autobotize-libras/' + code + '/down');
+    cli.on('message', (t, m) => {
+      let d; try { d = JSON.parse(m.toString()); } catch (e) { return; }
+      if (d.fim || d.kick === nomeAluno) { ALU.ativo = false; pill('pSala', 'err', d.fim ? 'Sala fechada' : 'Você saiu da sala'); }
+    });
+    pill('pSala', 'ok', 'Sala ' + code);
+    const oi = () => { if (ALU.ativo) cli.publish('autobotize-libras/' + code + '/up', JSON.stringify({ n: nomeAluno, oi: 1 })); };
+    setInterval(oi, 4000); setTimeout(oi, 500);
+  } catch (e) { pill('pSala', 'err', 'Sala indisponível'); }
+}
 function entrarComNome() {
   return new Promise(res => {
     let n = ''; try { n = sessionStorage.getItem('aluno-nome') || ''; } catch (e) {}
-    const fim = nome => { nomeAluno = nome; try { sessionStorage.setItem('aluno-nome', nome); } catch (e) {} $('nomeGate').hidden = true; $('gNome').value = nome; res(); };
+    const fim = nome => { try { salaIniciar(($('salaCodigo').value || new URLSearchParams(location.search).get('sala') || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4)); } catch (e) {} nomeAluno = nome; try { sessionStorage.setItem('aluno-nome', nome); } catch (e) {} $('nomeGate').hidden = true; $('gNome').value = nome; res(); };
     if (n) { fim(n); return; }
     $('nomeForm').addEventListener('submit', e => { e.preventDefault(); const v = $('nomeAluno').value.replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (v) fim(v.slice(0, 14)); });
     $('nomeAluno').focus();
