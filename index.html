@@ -47,6 +47,11 @@ input,select{font:inherit;color:var(--tx)}
 /* ---------- layout ---------- */
 main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;padding:20px 22px 36px;max-width:1560px;margin:0 auto;align-items:start}
 @media (max-width:1020px){main{grid-template-columns:1fr}}
+@media (min-width:1021px){main>section:first-child{position:sticky;top:74px;align-self:start;max-height:calc(100vh - 88px);overflow-y:auto}}
+#camCard .viewport{width:min(100%,calc(54vh * 4 / 3));margin-inline:auto}
+.camRec{display:none;gap:10px;margin-top:12px;flex-wrap:wrap}
+body[data-tab="aprender"] .camRec{display:flex}
+.camRec .btn{flex:1 1 200px}
 .card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
 .card+.card{margin-top:16px}
 h2{margin:0 0 4px;font-size:1.12rem;letter-spacing:-.005em}
@@ -200,6 +205,11 @@ input[type=range]{accent-color:var(--ac);flex:1}
         <div id="cd" class="countdown" hidden></div>
         <div id="msgcam" class="msgcam">Ligando a câmera...</div>
       </div>
+      <div class="camRec">
+        <button class="btn pri" id="btnGravar2" disabled>Gravar</button>
+        <button class="btn" id="dinGravar2" disabled>Gravar movimento</button>
+      </div>
+      <div class="small camRec" style="margin-top:8px">Escolha a letra no painel ao lado e grave aqui, sem rolar a tela. Atalho: barra de espaço grava a letra escolhida.</div>
     </div>
 
     <div class="card" id="recoCard">
@@ -321,9 +331,11 @@ input[type=range]{accent-color:var(--ac);flex:1}
       </div>
       <div class="card">
         <h3>Modo cofre</h3>
-        <label class="check"><input type="checkbox" id="cofreOn"> Só abre se a senha for soletrada em Libras</label>
-        <div class="add" style="margin-top:12px"><input id="cofreSenha" type="text" maxlength="12" placeholder="senha secreta (ex.: LIBRAS)" style="flex:1"></div>
-        <div id="cofreMsg" class="small">Ative, defina a senha e soletre. Se acertar, o Arduino comemora.</div>
+        <p class="hint">Um jogo de senha: 1) escreva a senha, 2) ligue o cofre, 3) soletre a senha em Libras, nesta mesma aba. Se acertar, o cofre abre e o Arduino comemora.</p>
+        <div class="add"><input id="cofreSenha" type="text" maxlength="12" placeholder="senha secreta (ex.: LIBRAS)" style="flex:1" autocomplete="off"></div>
+        <label class="check" style="margin-top:12px"><input type="checkbox" id="cofreOn"> Ligar o cofre</label>
+        <div id="cofreDots" style="font-size:1.6rem;letter-spacing:.3em;min-height:2rem;margin-top:8px"></div>
+        <div id="cofreMsg" class="small">Cofre desligado.</div>
       </div>
     </div>
 
@@ -458,6 +470,7 @@ function renderChips() {
   });
   $('btnGravar').disabled = !cameraOk || !!capture || training;
   $('btnGravar').textContent = 'Gravar ' + N_CAPTURA + ' exemplos de ' + nome(active);
+  $('btnGravar2').disabled = $('btnGravar').disabled; $('btnGravar2').textContent = 'Gravar ' + nome(active) + ' (espaço)';
   const ready = Object.keys(samples).filter(l => count(l) >= MIN_TREINO).length;
   $('btnTreinar').disabled = ready < 2 || training;
   $('wizIniciar').disabled = !cameraOk || training || !!capture;
@@ -616,7 +629,7 @@ function spellStep(label, conf, now) {
     } else setRing(0);
   } else { holdLabel = null; setRing(0); }
 }
-function acaoApagar() { word = word.slice(0, -1); $('palavra').textContent = word; send('A'); send('P,' + ardWord(word)); }
+function acaoApagar() { word = word.slice(0, -1); $('palavra').textContent = word; send('A'); send('P,' + ardWord(word)); try { cofreDots(); } catch (e) {} }
 function acaoLimpar() { word = ''; $('palavra').textContent = ''; send('C'); }
 function acceptLetter(label) {
   if (ehCmd(label)) {
@@ -1107,6 +1120,7 @@ function renderDin() {
   const ready = Object.keys(samplesDin).filter(l => dinCount(l) >= 20).length;
   $('dinGravar').disabled = !cameraOk || !!dinRec || !!capture || training; $('dinGravar').textContent = 'Gravar ' + dinReps + ' repetições de ' + nome(dinActive);
   $('dinTreinar').disabled = !ready || dinTraining;
+  $('dinGravar2').disabled = $('dinGravar').disabled; $('dinGravar2').textContent = 'Gravar movimento ' + nome(dinActive);
 }
 function dinRecord() {
   if (dinRec || capture || training || !cameraOk) return;
@@ -1224,18 +1238,39 @@ let cofreTimer = null;
 function cofreEnvia() { send($('cofreOn').checked ? 'T,1' : 'T,0'); }
 $('cofreOn').addEventListener('change', cofreEnvia);
 function cofreShow(txt, cls) { const e = $('cofreBig'); e.className = 'cofreBig ' + cls; e.textContent = txt; e.hidden = false; clearTimeout(cofreTimer); cofreTimer = setTimeout(() => { e.hidden = true; }, 3200); }
+function senhaCofre() { return vozNormalize($('cofreSenha').value).replace(/ /g, ''); }
+function cofreProgresso() {
+  const sen = senhaCofre(), w = word.replace(/ /g, '').replace(/Ç/g, 'C');
+  let n = 0; for (let k = Math.min(sen.length, w.length); k > 0; k--) if (sen.startsWith(w.slice(-k))) { n = k; break; }
+  return n;
+}
+function cofreDots() {
+  const sen = senhaCofre(), on = $('cofreOn').checked, n = on ? cofreProgresso() : 0;
+  $('cofreDots').textContent = on && sen ? sen.split('').map((c, i) => i < n ? '●' : '○').join(' ') : '';
+}
+$('cofreOn').addEventListener('change', () => {
+  const on = $('cofreOn').checked;
+  if (on && !senhaCofre()) { $('cofreOn').checked = false; $('cofreMsg').textContent = 'Escreva a senha primeiro (só letras).'; $('cofreSenha').focus(); return; }
+  word = ''; $('palavra').textContent = ''; send('C');
+  $('cofreMsg').textContent = on ? 'Cofre trancado. Soletre a senha em Libras.' : 'Cofre desligado.';
+  cofreDots(); cofreEnvia();
+});
+$('cofreSenha').addEventListener('input', () => { if ($('cofreOn').checked) { $('cofreOn').checked = false; $('cofreMsg').textContent = 'Senha alterada: ligue o cofre de novo.'; cofreEnvia(); } cofreDots(); });
 function cofreCheck() {
   if (!$('cofreOn').checked) return;
-  const senha = vozNormalize($('cofreSenha').value).replace(/ /g, '');
+  const senha = senhaCofre();
   if (!senha) { $('cofreMsg').textContent = 'Defina uma senha primeiro.'; return; }
   const w = word.replace(/ /g, '').replace(/Ç/g, 'C');
-  if (w === senha) {
-    cofreShow('ACESSO LIBERADO', 'ok'); $('cofreMsg').textContent = 'Senha correta!';
+  cofreDots();
+  if (w.endsWith(senha)) {
+    cofreShow('ACESSO LIBERADO', 'ok'); $('cofreMsg').textContent = 'Senha correta! O cofre abriu.';
     sWin(); send('P,ACESSO LIBERADO'); send('O'); word = ''; $('palavra').textContent = '';
-    setTimeout(cofreEnvia, 4500);
-  } else if (w.length >= senha.length) {
-    cofreShow('SENHA INCORRETA', 'bad'); $('cofreMsg').textContent = 'Tente de novo.';
-    sBad(); send('F'); word = ''; $('palavra').textContent = ''; send('C');
+    $('cofreOn').checked = false; cofreDots();
+  } else if (cofreProgresso() === 0 && w.length >= senha.length) {
+    cofreShow('SENHA INCORRETA', 'bad'); $('cofreMsg').textContent = 'Errou. Tente de novo.';
+    sBad(); send('F'); word = ''; $('palavra').textContent = ''; send('C'); cofreDots();
+  } else {
+    $('cofreMsg').textContent = 'Cofre trancado. Faltam ' + (senha.length - cofreProgresso()) + ' letra(s).';
   }
 }
 
@@ -1254,6 +1289,13 @@ function setTab(t) {
 }
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $('btnGravar').addEventListener('click', () => startCapture());
+$('btnGravar2').addEventListener('click', () => startCapture());
+$('dinGravar2').addEventListener('click', () => dinRecord());
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || tab !== 'aprender') return;
+  const t = e.target && e.target.tagName; if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA' || t === 'BUTTON') return;
+  e.preventDefault(); if (!capture && !training && cameraOk) startCapture();
+});
 $('btnTreinar').addEventListener('click', trainNet);
 $('btnApagarLetra').addEventListener('click', () => { delete samples[active]; saveSamples(); renderChips(); });
 $('btnAdd').addEventListener('click', () => { const v = $('novaLetra').value.trim().toUpperCase(); if (/^[A-Z0-9Ç]$/.test(v)) { if (!samples[v]) samples[v] = []; active = v; $('novaLetra').value = ''; renderChips(); } });
