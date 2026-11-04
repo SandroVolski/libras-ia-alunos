@@ -1,0 +1,1336 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Libras com IA</title>
+<style>
+:root{
+  --bg:#080d12; --s1:#0f1820; --s2:#15212b; --s3:#1b2a36; --line:#223341;
+  --tx:#e9f1f5; --mu:#8da2af; --ac:#4fd1c5; --ac-ink:#04201d; --am:#f6ad55; --ok:#48bb78; --bad:#f56565;
+  --r:16px; color-scheme:dark;
+  --font:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  font-family:var(--font);font-size:16px;line-height:1.5;color:var(--tx);
+  background:var(--bg);
+}
+[hidden]{display:none!important}
+button{font:inherit;color:var(--tx);cursor:pointer}
+input,select{font:inherit;color:var(--tx)}
+
+/* ---------- cabeçalho ---------- */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;padding:14px 22px;border-bottom:1px solid var(--line);
+     background:var(--bg);position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:46px;height:46px;flex:none;display:block}
+.brand h1{font-size:1.3rem;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.01em}
+.tag{margin-left:9px;font-size:.7rem;font-weight:800;letter-spacing:.1em;padding:3px 7px;border-radius:6px;background:var(--ac);color:var(--ac-ink);vertical-align:middle}
+.tabs{display:flex;gap:6px;background:var(--s1);border:1px solid var(--line);padding:5px;border-radius:14px;margin-inline:auto;flex-wrap:wrap}
+.tab{border:0;background:transparent;padding:9px 16px;border-radius:10px;color:var(--mu);font-weight:600;font-size:.95rem}
+.tab:hover{color:var(--tx)}
+.tab[aria-selected="true"]{background:var(--ac);color:var(--ac-ink)}
+.status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;padding:5px 11px;border-radius:999px;background:var(--s1);border:1px solid var(--line);color:var(--mu)}
+.pill i{width:8px;height:8px;border-radius:50%;background:#52606b;display:block}
+.pill.ok i{background:var(--ok);box-shadow:0 0 10px var(--ok)} .pill.ok{color:var(--tx)}
+.pill.err i{background:var(--bad)} .pill.warn i{background:var(--am)}
+.btn{border:1px solid var(--line);background:var(--s2);padding:9px 16px;border-radius:11px;font-weight:600;font-size:.92rem}
+.btn:hover{border-color:var(--ac)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--ac-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.big{padding:14px 26px;font-size:1.05rem;border-radius:13px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- layout ---------- */
+main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;padding:20px 22px 36px;max-width:1560px;margin:0 auto;align-items:start}
+@media (max-width:1020px){main{grid-template-columns:1fr}}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.card+.card{margin-top:16px}
+h2{margin:0 0 4px;font-size:1.12rem;letter-spacing:-.005em}
+h3{margin:0 0 8px;font-size:.95rem;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.74rem}
+.hint{color:var(--mu);font-size:.92rem;margin:0 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* ---------- palco: câmera ---------- */
+.viewport{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:4/3;border:1px solid var(--line)}
+video,canvas#overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.viewport.ok{box-shadow:0 0 0 3px var(--ok)}
+.viewport.bad{box-shadow:0 0 0 3px var(--bad)}
+.msgcam{position:absolute;left:0;right:0;bottom:0;padding:10px 14px;background:rgba(0,0,0,.65);font-size:.9rem}
+.countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10rem;font-weight:800;color:var(--ac);text-shadow:0 0 40px #000}
+.camTarget{position:absolute;left:16px;top:12px;font-size:7rem;line-height:1;font-weight:800;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.8);background:rgba(8,13,18,.55);border:2px solid var(--ac);border-radius:18px;padding:6px 22px}
+.reco{display:flex;gap:18px;align-items:center;margin-top:16px}
+.ring{--p:0;width:132px;height:132px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--ac) calc(var(--p)*1%),var(--s3) 0)}
+.ring span{width:112px;height:112px;border-radius:50%;background:var(--s1);display:grid;place-items:center;font-size:4rem;font-weight:800;line-height:1}
+.reco .txt{flex:1;min-width:0}
+#confText{color:var(--mu);margin-bottom:8px}
+.bar{height:10px;border-radius:6px;background:var(--s3);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .1s}
+
+/* ---------- palco: avatar ---------- */
+.avatarWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(circle at 50% 40%,#16303a 0%,#0a1218 70%);aspect-ratio:1/1;max-height:76vh;margin-inline:auto}
+#avatar{width:100%;height:100%;display:block}
+.avatarLetter{position:absolute;left:18px;top:12px;font-size:6rem;font-weight:800;line-height:1;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.7)}
+.avatarNote{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:var(--mu);font-size:.95rem}
+.letterRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;justify-content:center}
+.lc{min-width:38px;height:44px;display:grid;place-items:center;border-radius:10px;background:var(--s2);border:1px solid var(--line);font-weight:700}
+.lc.on{background:var(--ac);color:var(--ac-ink);border-color:var(--ac)}
+.lc.no{background:#3a1d22;border-color:#7b2f38;color:#ffb3bd}
+.lc.sp{min-width:20px;opacity:.5}
+
+/* ---------- painéis ---------- */
+.panel{display:none}
+body[data-tab="aprender"] .p-aprender,body[data-tab="soletrar"] .p-soletrar,body[data-tab="jogo"] .p-jogo,body[data-tab="voz"] .p-voz{display:block}
+body[data-tab="voz"] #camCard,body[data-tab="voz"] #recoCard{display:none}
+body:not([data-tab="voz"]) #avatarCard{display:none}
+body[data-tab="aprender"] #recoCard.hide-on-learn{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{display:flex;flex-direction:column;align-items:center;min-width:56px;padding:7px 11px;line-height:1.1;background:var(--s2);border:1px solid var(--line);border-radius:12px}
+.chip b{font-size:1.3rem}
+.chip small{color:var(--mu);font-size:.7rem}
+.chip.on{border-color:var(--ac);background:#10333a}
+.chip.low small{color:var(--am)}
+.chip.pl{flex-direction:row;gap:8px;padding:6px 12px;min-width:0}
+.chip.pl button{border:0;background:transparent;color:var(--mu);padding:0 2px;font-size:1.1rem}
+.add{display:flex;gap:8px;margin-bottom:12px}
+input[type=text]{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-width:0}
+input[type=text]:focus,select:focus{outline:2px solid var(--ac);outline-offset:1px}
+select{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+canvas#loss{width:100%;height:110px;background:var(--s2);border-radius:10px;display:block;margin-top:12px}
+#trainInfo{color:var(--mu);font-size:.9rem;margin-top:6px}
+.wordbox{margin-top:0}
+.word{font-size:clamp(2rem,5vw,3.4rem);font-weight:800;letter-spacing:.14em;min-height:1.3em;overflow-wrap:anywhere;white-space:pre-wrap}
+.word:empty::before{content:"Soletre uma palavra";color:var(--mu);font-weight:400;font-size:1.05rem;letter-spacing:0}
+.warn{color:var(--am);font-size:.9rem;margin:10px 0 0}
+.small{font-size:.85rem;color:var(--mu)}
+
+/* ---------- jogo ---------- */
+.gHead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--mu);font-weight:600}
+.gHead b{color:var(--tx)}
+.gMain{display:flex;gap:22px;align-items:center;justify-content:center;margin:14px 0;flex-wrap:wrap}
+.gTarget{font-size:9rem;font-weight:800;line-height:1;min-width:1.2em;text-align:center;color:#fff}
+.gTarget.cd{color:var(--am)}
+.tel{width:92px;height:156px;flex:none;background:#050a0e;border:2px solid #1b2a36;border-radius:12px;padding:10px}
+.tel polygon{fill:#17222b;transition:fill .08s}
+.tel polygon.on{fill:#ff3b3b;filter:drop-shadow(0 0 6px #ff3b3b)}
+.gMsg{min-height:2.4em;text-align:center;font-size:1.2rem;font-weight:700}
+.gMsg.ok{color:var(--ok)} .gMsg.bad{color:var(--bad)}
+.bar.t i{background:var(--am)}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--mu);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.win td{color:var(--am);font-weight:700}
+.winner{text-align:center;padding:10px 0}
+.winner b{display:block;font-size:2.2rem;color:var(--am)}
+
+/* ---------- voz ---------- */
+.mic{width:76px;height:76px;border-radius:50%;border:0;background:var(--ac);display:grid;place-items:center}
+.mic.rec{background:var(--bad);animation:pulse 1.1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,101,101,.55)}50%{box-shadow:0 0 0 16px rgba(245,101,101,0)}}
+.say{font-size:1.4rem;font-weight:700;min-height:2.2em;margin:12px 0 4px;overflow-wrap:anywhere}
+.range{display:flex;gap:10px;align-items:center;color:var(--mu);font-size:.9rem}
+input[type=range]{accent-color:var(--ac);flex:1}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}.bar i,.tel polygon{transition:none}}
+.beta{margin-left:8px;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:6px;border:1px solid var(--am);color:var(--am);vertical-align:middle}
+.cofreBig{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3.4rem;font-weight:800;letter-spacing:.04em;text-align:center;padding:20px;background:rgba(8,13,18,.82)}
+.cofreBig.ok{color:var(--ok)} .cofreBig.bad{color:var(--bad)}
+.check{display:flex;gap:8px;align-items:center;cursor:pointer;color:var(--mu);font-size:.92rem}
+.check input{width:18px;height:18px;accent-color:var(--ac)}
+.p-aprender,#btnArduino,#pArd,#btnFull,.card:has(#cofreOn){display:none!important}
+.nomeGate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(5,10,14,.92);padding:20px}
+.nomeGate form{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px}
+.nomeGate h2{margin:0;font-size:1.3rem}
+.nomeGate input{font:inherit;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--s2);color:inherit}
+.nomeGate p{margin:0;color:var(--mu);font-size:.9rem}
+</style>
+</head>
+<body data-tab="soletrar">
+
+<div class="nomeGate" id="nomeGate">
+  <form id="nomeForm">
+    <h2>Libras com IA</h2>
+    <p>Escreva seu nome para começar. Ele aparece no placar do jogo e fica só neste aparelho.</p>
+    <input id="nomeAluno" type="text" maxlength="14" placeholder="Seu nome" autocomplete="off" required>
+    <button class="btn pri" type="submit">Entrar</button>
+    <p>A câmera é usada só para reconhecer a sua mão aqui no celular. Nenhuma imagem é enviada.</p>
+  </form>
+</div>
+
+<header class="top">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 48 48" role="img" aria-label="Libras com IA">
+      <rect width="48" height="48" rx="12" fill="#0e2a31"/>
+      <g stroke="#4fd1c5" stroke-width="3.6" stroke-linecap="round" fill="none">
+        <path d="M18 25V11"/><path d="M24 25V8"/><path d="M30 25V11"/><path d="M36 28l3-11"/><path d="M12 30L8 21"/>
+        <path d="M12 30Q12 41 24 41Q36 41 36 28"/>
+      </g>
+      <g fill="#f6ad55"><circle cx="8" cy="21" r="2.5"/><circle cx="18" cy="11" r="2.5"/><circle cx="24" cy="8" r="2.5"/><circle cx="30" cy="11" r="2.5"/><circle cx="39" cy="17" r="2.5"/></g>
+    </svg>
+    <h1>Libras<span class="tag">IA</span></h1>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Áreas do sistema">
+    
+    <button class="tab" role="tab" data-tab="soletrar" aria-selected="true">Soletrar</button>
+    <button class="tab" role="tab" data-tab="jogo" aria-selected="false">Jogo</button>
+    <button class="tab" role="tab" data-tab="voz" aria-selected="false">Voz → Libras</button>
+  </nav>
+  <div class="status">
+    <span class="pill" id="pCam"><i></i>Câmera</span>
+    <span class="pill" id="pIA"><i></i>IA</span>
+    <span class="pill" id="pArd"><i></i>Arduino</span>
+    <button class="btn" id="btnArduino">Conectar Arduino</button>
+    <button class="btn" id="btnFull">Tela cheia</button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== palco (esquerda) ===== -->
+  <section>
+    <div class="card" id="camCard">
+      <div class="viewport" id="viewport">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay" width="640" height="480"></canvas>
+        <div id="camTarget" class="camTarget" hidden></div>
+        <canvas id="refMini" width="200" height="260" hidden style="position:absolute;right:10px;top:10px;width:84px;height:109px;background:rgba(8,13,18,.85);border:1px solid var(--line);border-radius:10px"></canvas>
+        <div id="cofreBig" class="cofreBig" hidden></div>
+        <div id="cd" class="countdown" hidden></div>
+        <div id="msgcam" class="msgcam">Ligando a câmera...</div>
+      </div>
+    </div>
+
+    <div class="card" id="recoCard">
+      <div class="reco">
+        <div class="ring" id="ring"><span id="letra">–</span></div>
+        <div class="txt">
+          <h3>Reconhecimento ao vivo</h3>
+          <div id="confText">Mostre uma letra para a câmera</div>
+          <div class="bar"><i id="confBar"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="avatarCard">
+      <div class="avatarWrap">
+        <canvas id="avatar" width="720" height="720"></canvas>
+        <div class="avatarLetter" id="avLetra"></div>
+        <div class="avatarNote" id="avNote">Fale uma palavra ou digite ao lado</div>
+      </div>
+      <div class="letterRow" id="vChips"></div>
+    </div>
+  </section>
+
+  <!-- ===== painéis (direita) ===== -->
+  <section>
+
+    <!-- APRENDER -->
+    <div class="panel p-aprender">
+      <div class="card">
+        <h2>Assistente do alfabeto</h2>
+        <p class="hint">Treina as letras sem movimento, uma de cada vez. A letra aparece sobre a câmera: faça o sinal e mantenha a mão à vista. Dura cerca de 3 minutos.</p>
+        <label class="check"><input type="checkbox" id="wizSkip" checked> Pular letras que já estão treinadas</label>
+        <div class="row" style="margin-top:12px"><button class="btn pri" id="wizIniciar" disabled>Treinar o alfabeto</button><button class="btn" id="wizParar" hidden>Parar</button></div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="wizCmd" disabled>Treinar os 3 gestos de comando</button></div>
+        <div class="small" style="margin-top:6px">Limpar tudo (polegar para baixo, parado), depois Falar (3 toquinhos na boca) e Apagar (3 tapinhas para trás), os dois com movimento. Espaço continua sendo a mão aberta.</div>
+        <div id="wizInfo" class="small" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <h2>Reforço: mais casos de cada letra</h2>
+        <p class="hint">Quanto mais jeitos diferentes de fazer a mesma letra, mais preciso fica. Cada rodada passa por todas as letras de novo (cerca de 2 minutos) pedindo uma variação. Faça 2 ou 3 rodadas e a rede treina sozinha no fim. Os exemplos novos se somam aos anteriores.</p>
+        <div class="row">
+          <select id="wizRodada" aria-label="Rodada de reforço" style="background:var(--s2);color:inherit;border:1px solid var(--line);border-radius:11px;padding:9px 12px">
+            <option value="0">Rodada 1: mais perto</option><option value="1">Rodada 2: mais longe</option><option value="2">Rodada 3: inclinada à esquerda</option><option value="3">Rodada 4: inclinada à direita</option><option value="4">Rodada 5: outra mão / outro ângulo</option><option value="5">Rodada 6: mais alta e mais baixa</option><option value="6">Rodada 7: relaxada, na pressa</option>
+          </select>
+          <button class="btn pri" id="wizReforco" disabled>Começar rodada</button>
+        </div>
+      </div>
+      <div class="card" id="refCard">
+        <h2>Como fazer o sinal <b id="refL" style="color:var(--teal,#4fd1c5)"></b></h2>
+        <div class="row" style="align-items:center;gap:16px;flex-wrap:nowrap">
+          <canvas id="refCv" width="200" height="260" style="width:150px;height:195px;background:var(--s2);border-radius:12px;flex:none"></canvas>
+          <div><div id="refTxt" style="font-weight:600"></div><div class="small" style="margin-top:8px">Desenho esquemático, só para orientar. Confira com um quadro de Libras ou com quem ensina. O sistema aprende o sinal que <b>você</b> fizer, então o importante é repetir sempre do mesmo jeito.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>1. Ensinar uma letra</h2>
+        <p class="hint">Escolha a letra, faça o sinal diante da câmera e aperte “Gravar”. Repita para cada letra. O ESPAÇO é o sinal combinado para separar palavras.</p>
+        <div id="chips" class="chips"></div>
+        <div class="add"><input id="novaLetra" type="text" maxlength="1" placeholder="outra letra" aria-label="Adicionar outra letra" style="width:110px"><button class="btn" id="btnAdd">Adicionar</button></div>
+        <div class="row">
+          <button class="btn pri" id="btnGravar" disabled>Gravar 40 exemplos</button>
+          <button class="btn" id="btnApagarLetra">Apagar desta letra</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>2. Treinar a rede neural</h2>
+        <p class="hint">A rede começa sem saber nada, erra, ajusta os pesos e vai acertando. O gráfico mostra o erro caindo.</p>
+        <button class="btn pri" id="btnTreinar" disabled>Treinar</button>
+        <canvas id="loss" width="440" height="110"></canvas>
+        <div id="trainInfo">Grave pelo menos 2 letras (15 exemplos cada).</div>
+      </div>
+      <div class="card">
+        <h2>3. Letras com movimento <span class="beta">experimental</span></h2>
+        <p class="hint">Para sinais que se desenham no ar, como J e Z. Escolha a letra e grave 8 repetições: a cada sinal sonoro, faça o movimento completo. Depois treine os movimentos.</p>
+        <div id="dinChips" class="chips"></div>
+        <div class="row">
+          <button class="btn pri" id="dinGravar" disabled>Gravar 8 repetições</button>
+          <button class="btn" id="dinTreinar" disabled>Treinar movimentos</button>
+          <button class="btn" id="dinApagar">Apagar desta letra</button>
+          <button class="btn" id="dinParar" hidden>Parar</button>
+        </div>
+        <div id="dinInfo" class="small" style="margin-top:8px">Grave pelo menos uma letra com movimento.</div>
+      </div>
+      <div class="card">
+        <h3>Cópia de segurança</h3>
+        <p class="hint">Baixe os exemplos para um arquivo. Se o navegador apagar os dados, é só carregar de volta.</p>
+        <div class="row">
+          <button class="btn" id="btnBackup">Baixar cópia</button>
+          <label class="btn" for="fileBackup" style="cursor:pointer">Carregar cópia</label>
+          <input id="fileBackup" type="file" accept="application/json" hidden>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLETRAR -->
+    <div class="panel p-soletrar">
+      <div class="card wordbox">
+        <h2>Soletrar</h2>
+        <p class="hint">Faça o sinal e segure por um instante: o anel enche e a letra entra na palavra. Para repetir a mesma letra, tire a mão da câmera e coloque de novo.</p>
+        <div id="palavra" class="word"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnApagar">Apagar letra</button>
+          <button class="btn" id="btnLimpar">Limpar</button>
+          <button class="btn pri" id="btnFalar">Falar a palavra</button>
+        </div>
+        <details style="margin-top:12px"><summary class="small" style="cursor:pointer">Voz do computador</summary>
+          <select id="vozSel" aria-label="Voz do computador" style="margin-top:8px;max-width:100%;background:var(--s2);color:inherit;border:1px solid var(--line);border-radius:11px;padding:9px 12px"></select>
+          <p class="small" style="margin-top:6px">Para a voz mais natural, abra a página no <b>Microsoft Edge</b> e escolha uma voz “Natural” (Francisca, Antonio ou Thalita). No Chrome, a “Google português do Brasil” também é boa.</p>
+        </details>
+        <p class="small" style="margin-top:10px">Gestos de comando: <b>ESPAÇO</b> mão aberta · <b>APAGAR</b> ⌫ 3 tapinhas para trás · <b>LIMPAR</b> ✕ polegar para baixo · <b>FALAR</b> ▶ 3 toquinhos na boca.</p>
+        <p class="warn" id="warnSoletrar" hidden>Treine a IA na aba “Aprender” primeiro.</p>
+      </div>
+      <div class="card">
+        <h3>Cuidado ao reconhecer</h3>
+        <p class="hint">A letra só é aceita se a mão ficar firme por um instante. Assim, o formato “no meio do caminho” entre uma letra e outra não vira letra errada. Se estiver lento demais, use Rápido; se ainda errar, use Cuidadoso.</p>
+        <select id="sensib" aria-label="Cuidado ao reconhecer" style="background:var(--s2);color:inherit;border:1px solid var(--line);border-radius:11px;padding:9px 12px">
+          <option value="0">Rápido</option><option value="1" selected>Normal</option><option value="2">Cuidadoso</option>
+        </select>
+      </div>
+      <div class="card">
+        <h3>Modo cofre</h3>
+        <label class="check"><input type="checkbox" id="cofreOn"> Só abre se a senha for soletrada em Libras</label>
+        <div class="add" style="margin-top:12px"><input id="cofreSenha" type="text" maxlength="12" placeholder="senha secreta (ex.: LIBRAS)" style="flex:1"></div>
+        <div id="cofreMsg" class="small">Ative, defina a senha e soletre. Se acertar, o Arduino comemora.</div>
+      </div>
+    </div>
+
+    <!-- JOGO -->
+    <div class="panel p-jogo">
+      <div class="card" id="gSetup">
+        <h2>Desafio dos Sinais</h2>
+        <p class="hint">A tela mostra uma letra. Faça o sinal antes que o tempo (no telão de 9 a 0) acabe. Quanto mais rápido, mais pontos.</p>
+        <div class="add"><input id="gNome" type="text" maxlength="14" placeholder="Nome do jogador" style="flex:1"><button class="btn" id="gAdd">Adicionar</button></div>
+        <div id="gPlayers" class="chips"></div>
+        <div class="row" style="margin-bottom:14px">
+          <label class="small">Letras por jogador
+            <select id="gRounds"><option>3</option><option selected>5</option><option>8</option></select></label>
+        </div>
+        <button class="btn pri big" id="gStart" disabled>Começar o jogo</button>
+        <p class="warn" id="gWarn" hidden></p>
+      </div>
+
+      <div class="card" id="gPlay" hidden>
+        <div class="gHead"><span id="gVez"></span><span id="gRodada"></span></div>
+        <div class="gMain">
+          <div class="gTarget" id="gTarget">A</div>
+          <svg class="tel" id="tel" viewBox="0 0 100 170" aria-label="Telão virtual de 7 segmentos">
+            <polygon data-s="0" points="18,8 82,8 72,18 28,18"/>
+            <polygon data-s="1" points="86,12 86,80 77,76 77,22"/>
+            <polygon data-s="2" points="86,90 86,158 77,148 77,94"/>
+            <polygon data-s="3" points="18,162 82,162 72,152 28,152"/>
+            <polygon data-s="4" points="14,90 14,158 23,148 23,94"/>
+            <polygon data-s="5" points="14,12 14,80 23,76 23,22"/>
+            <polygon data-s="6" points="20,85 30,79 70,79 80,85 70,91 30,91"/>
+          </svg>
+        </div>
+        <div class="bar t"><i id="gTimer" style="width:100%"></i></div>
+        <div class="gMsg" id="gMsg"></div>
+        <div class="row" style="justify-content:center"><button class="btn" id="gStop">Encerrar jogo</button></div>
+      </div>
+
+      <div class="card" id="gEnd" hidden>
+        <div class="winner"><span class="small">Vencedor</span><b id="gWinner"></b><span class="small" id="gWinnerPts"></span></div>
+        <div class="row" style="justify-content:center;margin-top:8px"><button class="btn pri" id="gAgain">Jogar de novo</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Placar</h3>
+        <table><thead><tr><th>Jogador</th><th class="n">Acertos</th><th class="n">Pontos</th></tr></thead><tbody id="gBoard"></tbody></table>
+      </div>
+    </div>
+
+    <!-- VOZ -->
+    <div class="panel p-voz">
+      <div class="card">
+        <h2>Voz → Libras</h2>
+        <p class="hint">Fale uma palavra em português. A página escreve e mostra, letra por letra, a mão fazendo cada sinal que os alunos ensinaram. O Arduino acompanha no display e nos LEDs.</p>
+        <div class="row" style="gap:16px">
+          <button class="mic" id="btnMic" aria-label="Falar"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#04201d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+          <div style="flex:1;min-width:0"><div class="small">Toque no microfone e fale</div><div class="say" id="vSay">…</div></div>
+        </div>
+        <div class="add" style="margin-top:6px"><input id="vTexto" type="text" maxlength="40" placeholder="ou digite uma palavra" style="flex:1"><button class="btn pri" id="vMostrar">Mostrar em Libras</button></div>
+        <div class="range"><span>Velocidade</span><input id="vVel" type="range" min="500" max="1800" step="50" value="1100" aria-label="Tempo por letra"><span id="vVelTxt">1,1 s</span></div>
+        <p class="warn" id="vWarn" hidden></p>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<script type="module">
+import { FilesetResolver, HandLandmarker, DrawingUtils } from './vendor/vision_bundle.mjs';
+import { MLP, mulberry32, featuresFromLandmarks, N_FEAT } from './ml.mjs';
+import { frameInfo, windowFeatures, motion as movimento, idleWindow, windowMove, transitionWindow, FEAT as DIN_FEAT } from './din.mjs';
+
+const $ = id => document.getElementById(id);
+const KEY = 'libras-amostras-v1';
+const ALFABETO = ['A','B','C','D','E','F','G','I','K','L','M','N','O','P','Q','R','S','T','U','V','W','Y'];
+const DIN_SUG = ['H','J','X','Z','Ç','_FALAR','_APAGAR'];
+const CMDS = ['_APAGAR', '_LIMPAR', '_FALAR'];                       // gestos de comando (não viram letra)
+const CMD_NOME = { _APAGAR: 'APAGAR', _LIMPAR: 'LIMPAR', _FALAR: 'FALAR' };
+const CMD_ICONE = { _APAGAR: '⌫', _LIMPAR: '✕', _FALAR: '▶' };
+const ehCmd = l => CMDS.includes(l);
+const SUG = [...ALFABETO, '_', '_LIMPAR'];
+const KEY_DIN = 'libras-movimento-v1';
+const ard = l => l === 'Ç' ? 'C' : l;                                   // o display não tem Ç
+const ardWord = w => w.replace(/Ç/g, 'C').replace(/[^A-Z0-9 ]/g, '');
+let samplesDin = {}, dinNet = null, dinClasses = [], dinTraining = false, dinRec = null, dinActive = 'J', capTimer = null;
+const frames = [];                                                      // quadros recentes da mão (para o movimento)
+const MOV_THR = 1.2;
+const DEMO = new URLSearchParams(location.search).has('demo');   // demonstração: não grava nada no navegador
+let dinReps = 8;
+const N_CAPTURA = 40, MAX_POR_CLASSE = 200, MIN_TREINO = 15, EPOCAS = 150;
+let HOLD_MS = 850, LIMIAR = 0.88, STILL_THR = 0.11;
+const SENSIB = [{ hold: 600, lim: 0.85, still: 0.16 }, { hold: 850, lim: 0.88, still: 0.11 }, { hold: 1200, lim: 0.92, still: 0.08 }];
+// a mão está firme? compara o formato de agora com o de ~0,35 s atrás e vê se o pulso andou
+function maoFirme(now) {
+  const fr = frames.filter(f => f.t >= now - 350); if (fr.length < 4) return true;
+  const a = fr[0], b = fr[fr.length - 1]; let d = 0;
+  for (let i = 0; i < 42; i++) d += Math.abs(a.shape[i] - b.shape[i]);
+  d /= 42;
+  return d <= STILL_THR && movimento(frames, now, 350) <= 0.5;
+}
+const CFG = { intro: 2500, ready: 3000, limit: 9000, feedback: 1800, turnEnd: 3200, hold: 450 };
+const nome = l => l === '_' ? 'ESPAÇO' : (CMD_NOME[l] || l);
+
+const video = $('video'), overlay = $('overlay'), ctx = overlay.getContext('2d');
+let samples = {}, active = 'A';
+let landmarker = null, net = null, classes = [];
+let capture = null, training = false;
+let word = '', tab = 'soletrar', W = 640, H = 480, cameraOk = false;
+const log = [];          // comandos enviados ao Arduino (depuração)
+
+/* =============== estado e chips de status =============== */
+function pill(id, kind, text) { const p = $(id); p.className = 'pill' + (kind ? ' ' + kind : ''); if (text) p.lastChild.textContent = text; }
+function setIA(kind, text) { pill('pIA', kind, text); }
+
+/* =============== exemplos guardados =============== */
+function loadSamples() { try { samples = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { samples = {}; } }
+function saveSamples() {
+  if (false) try { localStorage.setItem(KEY, JSON.stringify(samples, (k, v) => typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)); } catch (e) {}
+  poseCache.clear();
+}
+const count = l => (samples[l] || []).length;
+
+function renderChips() {
+  const labels = Array.from(new Set([...SUG, ...Object.keys(samples)]));
+  const box = $('chips'); box.innerHTML = '';
+  labels.forEach(l => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (l === active ? ' on' : '') + (count(l) < MIN_TREINO ? ' low' : '');
+    b.innerHTML = '<b></b><small></small>';
+    b.firstChild.textContent = nome(l); b.lastChild.textContent = count(l) + ' ex.';
+    b.addEventListener('click', () => { active = l; renderChips(); });
+    box.appendChild(b);
+  });
+  $('btnGravar').disabled = !cameraOk || !!capture || training;
+  $('btnGravar').textContent = 'Gravar ' + N_CAPTURA + ' exemplos de ' + nome(active);
+  const ready = Object.keys(samples).filter(l => count(l) >= MIN_TREINO).length;
+  $('btnTreinar').disabled = ready < 2 || training;
+  $('wizIniciar').disabled = !cameraOk || training || !!capture;
+  try { $('wizReforco').disabled = !cameraOk || training || !!capture || wiz.on; $('wizCmd').disabled = $('wizReforco').disabled; } catch (e) {}
+  try { showRef(active); } catch (e) {}
+}
+
+/* =============== câmera e modelo =============== */
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    video.srcObject = stream; await video.play();
+    W = video.videoWidth || 640; H = video.videoHeight || 480; overlay.width = W; overlay.height = H;
+    $('msgcam').hidden = true; cameraOk = true; pill('pCam', 'ok');
+  } catch (e) {
+    $('msgcam').textContent = 'Não consegui abrir a câmera. Permita o acesso no navegador e recarregue a página.';
+    pill('pCam', 'err'); throw e;
+  }
+}
+async function loadModel() {
+  const fileset = await FilesetResolver.forVisionTasks('./vendor/wasm');
+  const make = delegate => HandLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: './vendor/hand_landmarker.task', delegate }, runningMode: 'VIDEO', numHands: 1,
+    minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await make('GPU'); } catch (e) { landmarker = await make('CPU'); }
+}
+
+/* =============== sons =============== */
+let audio = null;
+function tone(f, ms, delay = 0, type = 'sine', vol = 0.07) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime + delay / 1000, o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + ms / 1000 + 0.02);
+  } catch (e) {}
+}
+const sOk = () => { tone(660, 120); tone(880, 160, 110); };
+const sBad = () => { tone(220, 260, 0, 'sawtooth', 0.05); };
+const sWin = () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 220, i * 150)); };
+const sBip = () => tone(880, 80);
+const sTick = () => tone(500, 60, 0, 'square', 0.03);
+
+/* =============== Arduino =============== */
+let port = null, writer = null, readyAt = 0;
+const enc = new TextEncoder();
+function send(line) {
+  log.push(line);
+  if (!writer || Date.now() < readyAt) return;
+  writer.write(enc.encode(line + '\n')).catch(() => {});
+}
+async function connectArduino() {
+  if (!('serial' in navigator)) { pill('pArd', 'err'); alert('Para o Arduino, use o Chrome ou o Edge.'); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600 });
+    writer = port.writable.getWriter();
+    readyAt = Date.now() + 2300;
+    $('btnArduino').textContent = 'Arduino conectado'; pill('pArd', 'ok');
+    setTimeout(() => { send('C'); cofreEnvia(); }, 2400);
+  } catch (e) { pill('pArd', 'err'); }
+}
+
+/* =============== gravação de exemplos =============== */
+function startCapture(label = active, secs = 3) {
+  if (capture || !cameraOk || training) return;
+  let n = secs;
+  $('cd').hidden = false; $('cd').textContent = n; renderChips();
+  clearInterval(capTimer);
+  capTimer = setInterval(() => {
+    n--; if (n > 0) { $('cd').textContent = n; return; }
+    clearInterval(capTimer); $('cd').hidden = true; capture = { label, left: N_CAPTURA, last: 0 }; renderChips();
+  }, 900);
+}
+function doCapture(f, now) {
+  if (now - capture.last < 45) return;
+  capture.last = now;
+  const list = samples[capture.label] || (samples[capture.label] = []);
+  if (list.length >= MAX_POR_CLASSE) list.shift();
+  list.push(Array.from(f)); capture.left--;
+  setIA('', 'Gravando ' + nome(capture.label) + ' ' + (N_CAPTURA - capture.left) + '/' + N_CAPTURA);
+  if (capture.left <= 0) {
+    capture = null; saveSamples(); renderChips();
+    setIA('ok', 'Exemplos gravados'); $('trainInfo').textContent = 'Há exemplos novos: aperte Treinar.';
+    if (wiz.on) { wiz.i++; wiz.timer = setTimeout(wizardStep, 500); }
+  }
+}
+
+/* =============== treino =============== */
+function drawLoss(losses) {
+  const c = $('loss'), g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.strokeStyle = '#223341'; g.lineWidth = 1;
+  for (let k = 0; k < 4; k++) { const y = 8 + k * (c.height - 16) / 3; g.beginPath(); g.moveTo(6, y); g.lineTo(c.width - 6, y); g.stroke(); }
+  if (losses.length < 2) {
+    g.fillStyle = '#8da2af'; g.font = '13px system-ui'; g.textAlign = 'center';
+    g.fillText('Ainda sem treino: o gráfico aparece quando você aperta “Treinar”', c.width / 2, c.height / 2 + 4); g.textAlign = 'start'; return;
+  }
+  const m = Math.max(...losses, 0.05);
+  g.strokeStyle = '#4fd1c5'; g.lineWidth = 2.5; g.beginPath();
+  losses.forEach((v, i) => { const x = 6 + i / (EPOCAS - 1) * (c.width - 12), y = c.height - 8 - v / m * (c.height - 16); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.stroke(); g.fillStyle = '#8da2af'; g.font = '12px system-ui'; g.fillText('erro', 8, 14); g.fillText('épocas →', c.width - 66, c.height - 12);
+}
+function trainNet() {
+  if (training) return;
+  const labels = Object.keys(samples).filter(l => count(l) >= MIN_TREINO).sort();
+  if (labels.length < 2) { $('trainInfo').textContent = 'Grave pelo menos 2 letras (15 exemplos cada).'; return; }
+  const X = [], y = [];
+  labels.forEach((l, i) => samples[l].forEach(s => { X.push(Float32Array.from(s)); y.push(i); }));
+  const model = MLP.paraMao(40, labels.length, 11), rnd = mulberry32(99), losses = [];
+  let ep = 0; training = true; net = null; renderChips(); setIA('warn', 'Treinando...');
+  (function step() {
+    for (let k = 0; k < 3 && ep < EPOCAS; k++) { losses.push(model.trainEpoch(X, y, rnd, 0.005, 32, true)); ep++; }
+    drawLoss(losses); $('trainInfo').textContent = 'Época ' + ep + '/' + EPOCAS + ' · erro ' + losses[0].toFixed(2) + ' → ' + losses[losses.length - 1].toFixed(3);
+    if (ep < EPOCAS) { requestAnimationFrame(step); return; }
+    let ok = 0; X.forEach((x, n) => { const p = model.predict(x); let k = 0; for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i; if (k === y[n]) ok++; });
+    $('trainInfo').textContent = 'Treino concluído · erro ' + losses[0].toFixed(2) + ' → ' + losses[losses.length - 1].toFixed(3) + ' · acertou ' + Math.round(ok / X.length * 100) + '% dos exemplos';
+    net = model; classes = labels; training = false; renderChips(); setIA('ok', 'IA treinada · ' + labels.length + ' sinais'); renderGame(); vozRenderChips();
+  })();
+}
+
+/* =============== reconhecimento ao vivo =============== */
+let lastHand = 0, handState = false;
+function setRing(frac) { $('ring').style.setProperty('--p', Math.round(frac * 100)); if (tab === 'soletrar') enviaMedidor(frac); }
+let kSent = 0, kPctSent = -9, kLabSent = '';
+const K_CHAR = { _: '_', _APAGAR: '<', _LIMPAR: 'X', _FALAR: '>' };
+function enviaConfianca(label, conf) {     // barra de confiança no display do Arduino
+  const t = performance.now(), pct = Math.round(conf * 100);
+  if (label === kLabSent && t - kSent < 1000 && (t - kSent < 150 || Math.abs(pct - kPctSent) < 3)) return;   // reenvia a cada 1 s mesmo parado
+  if (t - kSent < 80) return;
+  kSent = t; kPctSent = pct; kLabSent = label;
+  send('K,' + pct + ',' + (K_CHAR[label] || ard(label)));
+}
+let rSent = 0;
+function enviaMedidor(frac) {              // LEDs enchendo enquanto segura a letra
+  const lv = frac <= 0 ? 0 : Math.min(3, Math.ceil(frac * 3));
+  if (lv !== rSent) { rSent = lv; send('R,' + lv); }
+}
+function showReco(label, conf) {
+  if (tab === 'soletrar' || tab === 'jogo') enviaConfianca(label, conf);
+  $('letra').textContent = conf >= 0.6 ? (label === '_' ? '␣' : (CMD_ICONE[label] || label)) : '?';
+  $('confText').textContent = conf >= 0.6 ? ('Acho que é ' + nome(label) + ' (' + Math.round(conf * 100) + '%)') : 'Não tenho certeza';
+  $('confBar').style.width = Math.round(conf * 100) + '%';
+}
+function resetReco() { $('letra').textContent = '–'; $('confText').textContent = 'Mostre uma letra para a câmera'; $('confBar').style.width = '0%'; setRing(0); }
+
+/* ---- soletrar ---- */
+let holdLabel = null, holdStart = 0, locked = null;
+function spellStep(label, conf, now) {
+  if (conf >= LIMIAR) {
+    if (locked && label !== locked) locked = null;
+    if (!locked) {
+      if (label !== holdLabel) { holdLabel = label; holdStart = now; }
+      const frac = Math.min(1, (now - holdStart) / HOLD_MS); setRing(frac);
+      if (frac >= 1) { acceptLetter(label); locked = label; holdLabel = null; setRing(0); }
+    } else setRing(0);
+  } else { holdLabel = null; setRing(0); }
+}
+function acaoApagar() { word = word.slice(0, -1); $('palavra').textContent = word; send('A'); send('P,' + ardWord(word)); }
+function acaoLimpar() { word = ''; $('palavra').textContent = ''; send('C'); }
+function acceptLetter(label) {
+  if (ehCmd(label)) {
+    dinLock = Math.max(dinLock, performance.now() + 1200); dinCand = null; dinConf = 0; sBip();
+    if (label === '_APAGAR') acaoApagar(); else if (label === '_LIMPAR') acaoLimpar(); else falar(word);
+    return;
+  }
+  if (!dinClasses.includes(label)) { dinLock = Math.max(dinLock, performance.now() + 1500); dinCand = null; dinConf = 0; }   // letra parada aceita: não deixa o movimento disparar logo em seguida
+  word += label === '_' ? ' ' : label; $('palavra').textContent = word; sBip();
+  send('L,' + ard(label)); send('P,' + ardWord(word));
+  cofreCheck();
+}
+$('btnApagar').addEventListener('click', acaoApagar);
+$('btnLimpar').addEventListener('click', acaoLimpar);
+$('btnFalar').addEventListener('click', () => falar(word));
+
+/* ---- voz do computador (o mais natural possível) ---- */
+let vozEscolhida = null;
+function vozesPT() { return ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^pt/i.test(v.lang)); }
+function melhorVoz() {
+  const vs = vozesPT(); if (!vs.length) return null;
+  const pref = [/natural/i, /online/i, /google/i, /francisca|thalita|antonio|maria|luciana|felipe/i];
+  for (const re of pref) { const v = vs.find(x => re.test(x.name) && /pt[-_]BR/i.test(x.lang)); if (v) return v; }
+  return vs.find(x => /pt[-_]BR/i.test(x.lang)) || vs[0];
+}
+function preencheVozes() {
+  const sel = $('vozSel'); if (!sel) return;
+  const vs = vozesPT(); let salva = null; try { salva = localStorage.getItem('libras-voz'); } catch (e) {}
+  sel.innerHTML = '';
+  const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Automática (melhor disponível)'; sel.appendChild(o0);
+  vs.forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = v.name; sel.appendChild(o); });
+  if (salva && vs.some(v => v.name === salva)) sel.value = salva;
+  vozEscolhida = sel.value;
+}
+if ('speechSynthesis' in window) { speechSynthesis.addEventListener('voiceschanged', preencheVozes); preencheVozes(); }
+$('vozSel').addEventListener('change', e => { vozEscolhida = e.target.value; try { localStorage.setItem('libras-voz', vozEscolhida); } catch (er) {} falar('Olá! Esta é a minha voz.'); });
+// prepara o texto para soar como fala: palavras normais viram frase; siglas e letras soltas são soletradas
+function textoFalado(t) {
+  const toks = t.trim().split(/\s+/).filter(Boolean).map(w => {
+    const lw = w.toLowerCase();
+    if (!/[aeiouáéíóúâêôãõ]/i.test(lw) || (lw.length === 1 && !/[aeo]/.test(lw))) return lw.toUpperCase().split('').join(', ');   // ex.: "BR" -> "B, R"
+    return lw;
+  });
+  let s = toks.join(' ');
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  if (!/[.!?]$/.test(s)) s += '.';
+  return s;
+}
+function falar(t) {
+  if (!t.trim() || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(textoFalado(t)); u.lang = 'pt-BR';
+  const v = (vozEscolhida && vozesPT().find(x => x.name === vozEscolhida)) || melhorVoz();
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = 0.93; u.pitch = 1.02; u.volume = 1;
+  u.onstart = () => send('G,1'); u.onend = u.onerror = () => send('G,0');
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+/* =============== JOGO =============== */
+const game = { state: 'idle', players: [], pi: 0, round: 0, rounds: 5, target: null, t0: 0, until: 0, lastDigit: null, hold: 0, fb: null, order: [] };
+const SEG_MASK = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F];
+function setTelao(d) {
+  const m = (d >= 0 && d <= 9) ? SEG_MASK[d] : 0;
+  document.querySelectorAll('#tel polygon').forEach(p => p.classList.toggle('on', !!((m >> Number(p.dataset.s)) & 1)));
+}
+function sendDigit(d) { if (d === game.lastDigit) return; game.lastDigit = d; send('N,' + (d === null || d < 0 ? '-' : d)); setTelao(d); }
+function pool() { return classes.filter(c => c !== '_' && !ehCmd(c)).concat(dinClasses.filter(c => c !== '_parado' && !ehCmd(c))); }
+function gameReady() { return !!net && pool().length >= 3; }
+
+function renderPlayers() {
+  const box = $('gPlayers'); box.innerHTML = '';
+  game.players.forEach((p, i) => {
+    const c = document.createElement('span'); c.className = 'chip pl'; c.textContent = p.name;
+    const x = document.createElement('button'); x.textContent = '×'; x.setAttribute('aria-label', 'Remover ' + p.name);
+    x.addEventListener('click', () => { if (game.state === 'idle') { game.players.splice(i, 1); renderGame(); } });
+    c.appendChild(x); box.appendChild(c);
+  });
+}
+function renderBoard() {
+  const tb = $('gBoard'); tb.innerHTML = '';
+  const best = Math.max(0, ...game.players.map(p => p.score));
+  game.players.forEach(p => {
+    const tr = document.createElement('tr'); if (game.state === 'end' && p.score === best && best > 0) tr.className = 'win';
+    [p.name, p.hits, p.score].forEach((v, i) => { const td = document.createElement('td'); if (i) td.className = 'n'; td.textContent = v; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+  if (!game.players.length) { const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 3; td.className = 'small'; td.textContent = 'Nenhum jogador ainda.'; tr.appendChild(td); tb.appendChild(tr); }
+}
+function renderGame() {
+  renderPlayers(); renderBoard();
+  const idle = game.state === 'idle', end = game.state === 'end';
+  $('gSetup').hidden = !idle; $('gPlay').hidden = idle || end; $('gEnd').hidden = !end;
+  const warn = $('gWarn');
+  if (!gameReady()) { warn.hidden = false; warn.textContent = 'Treine pelo menos 3 letras na aba “Aprender” para jogar.'; }
+  else if (!cameraOk) { warn.hidden = false; warn.textContent = 'A câmera não está ligada.'; }
+  else warn.hidden = true;
+  $('gStart').disabled = !(idle && gameReady() && cameraOk && game.players.length > 0);
+  $('warnSoletrar').hidden = !!net;
+}
+function gameStart() {
+  if (!gameReady() || !game.players.length) return;
+  game.rounds = Number($('gRounds').value) || 5; game.pi = 0; game.round = 0; game.lastDigit = null;
+  game.players.forEach(p => { p.score = 0; p.hits = 0; });
+  send('C'); beginIntro();
+}
+function beginIntro() { game.state = 'intro'; game.until = performance.now() + CFG.intro; game.hold = 0; game.target = null; camTarget(null); renderGame(); paintGame(); }
+function pickTarget() {
+  const p = pool(); let t = p[Math.floor(Math.random() * p.length)];
+  if (p.length > 1 && t === game.target) t = p[(p.indexOf(t) + 1) % p.length];
+  return t;
+}
+function camTarget(l) { const e = $('camTarget'); e.hidden = !l; e.textContent = l || ''; }
+function vp(cls) { const v = $('viewport'); v.classList.remove('ok', 'bad'); if (cls) v.classList.add(cls); }
+function gameStop() { game.state = 'idle'; camTarget(null); vp(null); game.lastDigit = null; sendDigit(-1); renderGame(); }
+function paintGame() {
+  const pl = game.players[game.pi]; if (!pl) return;
+  $('gVez').innerHTML = 'Vez de <b></b>'; $('gVez').firstChild.nextSibling.textContent = pl.name;
+  $('gRodada').textContent = 'Letra ' + Math.min(game.round + 1, game.rounds) + ' de ' + game.rounds + ' · ' + pl.score + ' pontos';
+}
+function gameTick() {
+  if (tab !== 'jogo' || game.state === 'idle' || game.state === 'end') return;
+  const now = performance.now(), pl = game.players[game.pi], tg = $('gTarget'), msg = $('gMsg');
+  if (game.state === 'intro') {
+    tg.className = 'gTarget cd'; tg.textContent = '…'; msg.className = 'gMsg'; msg.textContent = 'Prepare-se, ' + pl.name + '!'; $('gTimer').style.width = '100%';
+    if (now >= game.until) { game.state = 'ready'; game.until = now + CFG.ready; game.lastDigit = null; }
+  } else if (game.state === 'ready') {
+    const left = Math.max(1, Math.ceil((game.until - now) / (CFG.ready / 3)));
+    tg.className = 'gTarget cd'; tg.textContent = left; msg.className = 'gMsg'; msg.textContent = 'Letra ' + (game.round + 1) + ' de ' + game.rounds; $('gTimer').style.width = '100%';
+    if (game.lastDigit !== left) { sendDigit(left); sTick(); }
+    if (now >= game.until) { game.target = pickTarget(); game.state = 'play'; game.t0 = now; game.hold = 0; game.lastDigit = null; vp(null); camTarget(game.target); tg.className = 'gTarget'; tg.textContent = game.target; msg.className = 'gMsg'; msg.textContent = 'Faça o sinal!'; }
+  } else if (game.state === 'play') {
+    const rem = CFG.limit - (now - game.t0), d = Math.max(0, Math.ceil(rem / (CFG.limit / 9)));
+    sendDigit(Math.min(9, d)); $('gTimer').style.width = Math.max(0, rem / CFG.limit * 100) + '%';
+    if (rem <= 0) gameFail();
+  } else if (game.state === 'feedback') {
+    if (now >= game.until) nextStep();
+  } else if (game.state === 'turnEnd') {
+    if (now >= game.until) { game.pi++; game.round = 0; if (game.pi >= game.players.length) gameFinish(); else beginIntro(); }
+  }
+}
+function gameFeed(label, conf, now) {
+  if (game.state !== 'play') return;
+  if (label === game.target && conf >= 0.8) {
+    if (!game.hold) game.hold = now;
+    if (now - game.hold >= CFG.hold) gameHit(now);
+  } else game.hold = 0;
+}
+function gameHit(now) {
+  const rem = Math.max(1, Math.ceil((CFG.limit - (now - game.t0)) / (CFG.limit / 9))), pts = Math.min(9, rem), pl = game.players[game.pi];
+  pl.score += pts; pl.hits++; game.state = 'feedback'; game.until = now + CFG.feedback;
+  send('L,' + ard(game.target)); game.lastDigit = null; sendDigit(pts); sOk(); vp('ok');
+  $('gMsg').className = 'gMsg ok'; $('gMsg').textContent = 'Acertou! +' + pts + ' pontos'; $('gTimer').style.width = '0%';
+  paintGame(); renderBoard();
+}
+function gameFail() {
+  game.state = 'feedback'; game.until = performance.now() + CFG.feedback;
+  send('F'); game.lastDigit = null; sendDigit(0); sBad(); vp('bad');
+  $('gMsg').className = 'gMsg bad'; $('gMsg').textContent = 'Tempo esgotado: era ' + game.target; paintGame();
+}
+function nextStep() {
+  vp(null); camTarget(null); game.round++;
+  if (game.round >= game.rounds) {
+    const pl = game.players[game.pi]; game.state = 'turnEnd'; game.until = performance.now() + CFG.turnEnd;
+    game.lastDigit = null; sendDigit(Math.min(9, pl.hits));
+    const tg = $('gTarget'); tg.className = 'gTarget cd'; tg.textContent = pl.hits; $('gMsg').className = 'gMsg'; $('gMsg').textContent = pl.name + ': ' + pl.hits + ' de ' + game.rounds + ' acertos · ' + pl.score + ' pontos';
+  } else { game.state = 'ready'; game.until = performance.now() + CFG.ready; game.lastDigit = null; paintGame(); }
+}
+function gameFinish() {
+  game.state = 'end'; const best = Math.max(...game.players.map(p => p.score)); const w = game.players.filter(p => p.score === best);
+  $('gWinner').textContent = w.map(p => p.name).join(' e '); $('gWinnerPts').textContent = best + ' pontos';
+  send('W'); game.lastDigit = null; sendDigit(Math.min(9, w[0].hits)); sWin(); renderGame();
+}
+$('gAdd').addEventListener('click', () => { const n = $('gNome').value.trim(); if (n && game.players.length < 8 && game.state === 'idle') { game.players.push({ name: n, score: 0, hits: 0 }); $('gNome').value = ''; renderGame(); } });
+$('gNome').addEventListener('keydown', e => { if (e.key === 'Enter') $('gAdd').click(); });
+$('gStart').addEventListener('click', gameStart);
+$('gStop').addEventListener('click', gameStop);
+$('gAgain').addEventListener('click', () => { game.state = 'idle'; sendDigit(-1); renderGame(); });
+setInterval(gameTick, 100);
+
+/* =============== VOZ → LIBRAS =============== */
+const poseCache = new Map();
+const FING = [0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5];
+const FCOL = ['#94a3b8', '#f6ad55', '#4fd1c5', '#63b3ed', '#b794f4', '#f687b3'];
+function meanPose(l) {
+  if (poseCache.has(l)) return poseCache.get(l);
+  const arr = samples[l]; let m = null;
+  if (arr && arr.length) { m = new Float32Array(N_FEAT); arr.forEach(s => { for (let i = 0; i < N_FEAT; i++) m[i] += s[i]; }); for (let i = 0; i < N_FEAT; i++) m[i] /= arr.length; }
+  poseCache.set(l, m); return m;
+}
+const lerpPose = (a, b, t) => { const o = new Float32Array(N_FEAT); for (let i = 0; i < N_FEAT; i++) o[i] = a[i] + (b[i] - a[i]) * t; return o; };
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const av = $('avatar'), avc = av.getContext('2d');
+function drawAvatar(pose, ox = 0, oy = 0) {
+  const Wd = av.width, Hd = av.height; avc.clearRect(0, 0, Wd, Hd);
+  if (!pose) return;
+  const s = Hd * 0.30, cx = Wd / 2, cy = Hd * 0.88;
+  const P = i => [cx - (pose[i * 3] + ox) * s, cy + (pose[i * 3 + 1] + oy) * s];
+  avc.lineCap = 'round'; avc.lineJoin = 'round';
+  // palma preenchida, para a mão ter corpo
+  avc.beginPath(); [0, 1, 5, 9, 13, 17].forEach((i, k) => { const p = P(i); k ? avc.lineTo(p[0], p[1]) : avc.moveTo(p[0], p[1]); }); avc.closePath();
+  avc.fillStyle = 'rgba(79,209,197,.16)'; avc.fill();
+  const cons = HandLandmarker.HAND_CONNECTIONS || [];
+  cons.forEach(c => {
+    const a = P(c.start), b = P(c.end), col = FCOL[FING[c.end]];
+    avc.shadowColor = col; avc.shadowBlur = 18; avc.strokeStyle = col; avc.lineWidth = 15;
+    avc.beginPath(); avc.moveTo(a[0], a[1]); avc.lineTo(b[0], b[1]); avc.stroke();
+  });
+  avc.shadowBlur = 0;
+  for (let i = 0; i < 21; i++) {
+    const p = P(i), tip = [4, 8, 12, 16, 20].includes(i);
+    avc.fillStyle = '#fff'; avc.beginPath(); avc.arc(p[0], p[1], tip ? 11 : 8, 0, 7); avc.fill();
+    avc.fillStyle = FCOL[FING[i]]; avc.beginPath(); avc.arc(p[0], p[1], tip ? 6 : 4, 0, 7); avc.fill();
+  }
+}
+const voz = { seq: [], t0: 0, running: false, idx: -1, step: 1100, morph: 420, prev: null, cur: null, built: '' };
+function vozNormalize(t) { return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]/g, '').replace(/\s+/g, ' ').trim(); }
+function vozRenderChips(active = -1) {
+  const box = $('vChips'); box.innerHTML = '';
+  voz.seq.forEach((ch, i) => {
+    const d = document.createElement('div');
+    d.className = 'lc' + (ch === ' ' ? ' sp' : '') + (i === active ? ' on' : '') + (ch !== ' ' && !hasSign(ch) ? ' no' : '');
+    d.textContent = ch === ' ' ? '·' : ch; box.appendChild(d);
+  });
+}
+function startSpelling(raw) {
+  const t = vozNormalize(raw || ''); const warn = $('vWarn');
+  if (!t) { warn.hidden = false; warn.textContent = 'Não entendi nenhuma palavra. Tente de novo ou digite.'; return; }
+  const have = Object.keys(samples).filter(l => count(l) >= 1).concat(Object.keys(samplesDin).filter(l => (samplesDin[l] || []).length));
+  if (!have.length) { warn.hidden = false; warn.textContent = 'Ensine alguns sinais na aba “Aprender” primeiro.'; return; }
+  const missing = Array.from(new Set(t.split('').filter(c => c !== ' ' && !hasSign(c))));
+  warn.hidden = !missing.length; if (missing.length) warn.textContent = 'Sem sinal ensinado para: ' + missing.join(', ') + ' (essas letras serão puladas).';
+  voz.seq = t.split(''); voz.step = Number($('vVel').value); voz.t0 = performance.now(); voz.running = true; voz.idx = -1; voz.prev = null; voz.cur = null; voz.built = '';
+  $('vSay').textContent = t; vozRenderChips(-1); send('C');
+}
+function vozStop() { voz.running = false; }
+function vozFrame(now) {
+  requestAnimationFrame(vozFrame);
+  if (tab !== 'voz' || !voz.running) return;
+  const tt = now - voz.t0, i = Math.floor(tt / voz.step);
+  if (i >= voz.seq.length) { voz.running = false; vozRenderChips(-1); $('avLetra').textContent = ''; $('avNote').textContent = 'Pronto: ' + voz.built; sWin(); send('W'); return; }
+  if (i !== voz.idx) {
+    voz.idx = i; const ch = voz.seq[i]; const pose = ch === ' ' ? null : meanPose(ch);
+    const dyn = (ch !== ' ' && !pose) ? dynMean(ch) : null; voz.dyn = dyn;
+    voz.prev = voz.cur; if (pose) { voz.cur = pose; if (!voz.prev) voz.prev = pose; } else if (dyn) { voz.cur = dyn.poses[0]; if (!voz.prev) voz.prev = voz.cur; }
+    voz.built += ch; vozRenderChips(i); $('avLetra').textContent = ch === ' ' ? '' : ch; $('avNote').textContent = voz.built.trim();
+    if (ch !== ' ' && (pose || dyn)) { send('L,' + ard(ch)); sBip(); }
+    send('P,' + ardWord(voz.built));
+  }
+  const within = tt - i * voz.step;
+  if (voz.dyn && within >= voz.morph) {
+    const u = Math.min(0.999, (within - voz.morph) / (voz.step - voz.morph)) * (voz.dyn.poses.length - 1), k = Math.floor(u), fr = u - k;
+    const a = voz.dyn.poses[k], b = voz.dyn.poses[Math.min(k + 1, voz.dyn.poses.length - 1)];
+    const oa = voz.dyn.off[k], ob = voz.dyn.off[Math.min(k + 1, voz.dyn.off.length - 1)];
+    drawAvatar(lerpPose(a, b, fr), oa[0] + (ob[0] - oa[0]) * fr, oa[1] + (ob[1] - oa[1]) * fr);
+  } else if (voz.cur) drawAvatar(voz.prev && within < voz.morph ? lerpPose(voz.prev, voz.cur, ease(within / voz.morph)) : voz.cur, voz.dyn ? voz.dyn.off[0][0] : 0, voz.dyn ? voz.dyn.off[0][1] : 0);
+}
+requestAnimationFrame(vozFrame);
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition; let rec = null;
+function micToggle() {
+  const warn = $('vWarn');
+  if (!SR) { warn.hidden = false; warn.textContent = 'Este navegador não tem reconhecimento de voz. Use o Chrome ou digite a palavra.'; return; }
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.maxAlternatives = 1;
+  rec.onstart = () => { $('btnMic').classList.add('rec'); warn.hidden = true; $('vSay').textContent = 'Ouvindo…'; };
+  rec.onresult = ev => {
+    let txt = ''; for (let i = ev.resultIndex; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
+    $('vSay').textContent = txt; $('vTexto').value = txt;
+    if (ev.results[ev.results.length - 1].isFinal) { startSpelling(txt); }
+  };
+  rec.onerror = ev => {
+    const m = { 'not-allowed': 'O microfone foi bloqueado. Permita o acesso ao microfone.', 'no-speech': 'Não ouvi nada. Tente de novo.', 'network': 'O reconhecimento de voz precisa de internet. Use o celular como roteador ou digite a palavra.', 'audio-capture': 'Nenhum microfone encontrado.' };
+    warn.hidden = false; warn.textContent = m[ev.error] || ('Erro de voz: ' + ev.error);
+  };
+  rec.onend = () => { $('btnMic').classList.remove('rec'); rec = null; };
+  try { rec.start(); } catch (e) { rec = null; }
+}
+$('btnMic').addEventListener('click', micToggle);
+$('vMostrar').addEventListener('click', () => startSpelling($('vTexto').value));
+$('vTexto').addEventListener('keydown', e => { if (e.key === 'Enter') startSpelling($('vTexto').value); });
+$('vVel').addEventListener('input', e => { $('vVelTxt').textContent = (e.target.value / 1000).toFixed(1).replace('.', ',') + ' s'; });
+
+/* =============== laço principal =============== */
+let lastVideoTime = -1;
+function onPrediction(f, now) {
+  if (capture) { doCapture(f, now); return; }
+  if (dinRec || !net) return;
+  const p = net.predict(f); let k = 0; for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i;
+  const label = classes[k], conf = p[k];
+  if (dinNet && movimento(frames, now, 500) >= MOV_THR) { holdLabel = null; game.hold = 0; setRing(0); $('confText').textContent = 'Movimento…'; return; }
+  showReco(label, conf);
+  if (tab === 'soletrar' && !maoFirme(now)) { holdLabel = null; setRing(0); return; }   // mão ainda se mexendo: não aceita
+  if (tab === 'soletrar') spellStep(label, conf, now);
+  else if (tab === 'jogo') gameFeed(label, conf, now);
+}
+function handleHand(lm, flip, now) {
+  lastHand = now;
+  if (!handState) { handState = true; send('H,1'); }
+  const info = frameInfo(lm, W / H, flip); info.t = now;
+  frames.push(info); while (frames.length && now - frames[0].t > 2600) frames.shift();
+  if (dinRec) dinRec.frames.push(info);
+  onPrediction(featuresFromLandmarks(lm, W / H, flip), now);
+  dinStep(now);
+}
+function loop() {
+  requestAnimationFrame(loop);
+  if (!landmarker || tab === 'voz' || video.readyState < 2 || video.currentTime === lastVideoTime) return;
+  lastVideoTime = video.currentTime;
+  const now = performance.now(), res = landmarker.detectForVideo(video, now);
+  ctx.clearRect(0, 0, W, H);
+  const lms = res.landmarks || [];
+  if (lms.length) {
+    const lm = lms[0], du = new DrawingUtils(ctx);
+    du.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, { color: '#4fd1c5', lineWidth: 5 });
+    du.drawLandmarks(lm, { color: '#ffffff', fillColor: '#f6ad55', radius: 4 });
+    const hd = res.handedness || res.handednesses || [];
+    const flip = !!(hd[0] && hd[0][0] && hd[0][0].categoryName === 'Left');
+    handleHand(lm, flip, now);
+  } else {
+    if (handState && now - lastHand > 400) { handState = false; send('H,0'); kLabSent = ''; }
+    if (now - lastHand > 500) { locked = null; holdLabel = null; game.hold = 0; resetReco(); }
+  }
+}
+
+/* =============== GUIA DOS SINAIS (desenho esquemático) =============== */
+// t: polegar (side/out/across/under/ok/curve) · f: [indicador, médio, anelar, mínimo] 0 dobrado, 1 curvo, 2 esticado
+const REF = {
+  A: { t: 'side', f: [0,0,0,0], d: 'Mão fechada, polegar encostado na lateral, apontando para cima.' },
+  B: { t: 'across', f: [2,2,2,2], d: 'Quatro dedos esticados e juntos; polegar dobrado sobre a palma.' },
+  C: { t: 'curve', f: [1,1,1,1], d: 'Mão curvada em formato de C.' },
+  D: { t: 'ok', f: [2,0,0,0], d: 'Indicador para cima; os outros dedos tocam o polegar.' },
+  E: { t: 'under', f: [0,0,0,0], d: 'Dedos dobrados sobre a palma, polegar por baixo deles.' },
+  F: { t: 'ok', f: [1,2,2,2], ring: 0, d: 'Indicador e polegar se tocam (círculo); os outros três dedos esticados.' },
+  G: { t: 'out', f: [2,0,0,0], rot: 90, d: 'Indicador e polegar apontando para o lado, paralelos.' },
+  I: { t: 'across', f: [0,0,0,2], d: 'Mão fechada com o dedo mínimo esticado para cima.' },
+  K: { t: 'ok', f: [2,2,0,0], spread: 1, d: 'Indicador e médio abertos em V; polegar encostado no médio.' },
+  L: { t: 'out', f: [2,0,0,0], d: 'Polegar e indicador formam um L.' },
+  M: { t: 'under', f: [0,0,0,0], big: 3, d: 'Polegar escondido sob três dedos (indicador, médio e anelar) dobrados.' },
+  N: { t: 'under', f: [0,0,0,0], big: 2, d: 'Polegar escondido sob dois dedos (indicador e médio) dobrados.' },
+  O: { t: 'ok', f: [1,1,1,1], ring: 1, d: 'Todos os dedos curvos tocando o polegar, formando um O.' },
+  P: { t: 'ok', f: [2,2,0,0], spread: 1, rot: 180, d: 'Como o K, mas com a mão virada para baixo.' },
+  Q: { t: 'out', f: [2,0,0,0], rot: 180, d: 'Como o G, mas apontando para baixo.' },
+  R: { t: 'across', f: [2,2,0,0], cross: 1, d: 'Indicador e médio esticados e cruzados.' },
+  S: { t: 'across', f: [0,0,0,0], d: 'Mão fechada com o polegar cruzado na frente dos dedos.' },
+  T: { t: 'under', f: [0,0,0,0], d: 'Mão fechada com o polegar entre o indicador e o médio.' },
+  U: { t: 'across', f: [2,2,0,0], d: 'Indicador e médio esticados e juntos.' },
+  V: { t: 'across', f: [2,2,0,0], spread: 1, d: 'Indicador e médio esticados e abertos em V.' },
+  W: { t: 'across', f: [2,2,2,0], spread: 1, d: 'Indicador, médio e anelar esticados e abertos.' },
+  Y: { t: 'out', f: [0,0,0,2], d: 'Polegar e dedo mínimo esticados, os outros fechados.' },
+  J: { t: 'across', f: [0,0,0,2], d: 'Forma do I, mas o mínimo desenha um J no ar. (movimento)' },
+  'Ç': { t: 'curve', f: [1,1,1,1], d: 'Forma do C com um pequeno movimento para baixo. (movimento)' },
+  H: { t: 'across', f: [2,2,0,0], rot: 90, d: 'Indicador e médio juntos, na horizontal, balançando de lado. (movimento)' },
+  X: { t: 'across', f: [1,0,0,0], d: 'Indicador em gancho; mexa o dedo dobrando e esticando. (movimento)' },
+  Z: { t: 'across', f: [2,0,0,0], d: 'Indicador esticado desenhando um Z no ar. (movimento)' },
+  _: { t: 'out', f: [2,2,2,2], spread: 1, d: 'Mão aberta, dedos afastados. Separa as palavras.' },
+  _FALAR: { t: 'across', f: [1,1,1,1], rot: 0, anim: p => [0, -10 * Math.abs(Math.sin(p * Math.PI * 3))], d: '3 toquinhos na boca, como quem fala (movimento rápido para a frente e para trás). O computador fala a palavra. (movimento)' },
+  _APAGAR: { t: 'across', f: [2,2,2,2], anim: p => [14 - 28 * ((p * 3) % 1), 0], d: '3 tapinhas no ar, como se empurrasse para TRÁS (da direita para a esquerda). Apaga a última letra. (movimento)' },
+  _LIMPAR: { t: 'up', f: [0,0,0,0], rot: 180, d: 'Polegar para BAIXO, como “errado”. Apaga a palavra toda.' }
+};
+REF.J.anim = p => [3 * Math.sin(p * 6.28), -8 + 16 * p];
+REF.Z.anim = p => [p < .33 ? p * 90 - 15 : p < .66 ? 15 - (p - .33) * 90 : (p - .66) * 90 - 15, p * 14 - 7];
+REF.H.anim = p => [8 * Math.sin(p * 6.28 * 2), 0];
+REF.X.anim = p => [0, -4 * Math.abs(Math.sin(p * 6.28 * 2))];
+REF['Ç'].anim = p => [0, 8 * Math.sin(p * 6.28)];
+let refTimer = null;
+function drawRef(cv, l, ph) {
+  const r = REF[l], g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  if (!r) { g.fillStyle = '#8da2af'; g.font = '16px system-ui'; g.textAlign = 'center'; g.fillText('sem desenho', W / 2, H / 2); g.textAlign = 'start'; return; }
+  const an = r.anim ? r.anim(ph || 0) : [0, 0];
+  g.save(); g.translate(W / 2 + an[0] * W / 100, H / 2 + an[1] * W / 100); g.rotate((r.rot || 0) * Math.PI / 180); g.scale(W / 100, W / 100); g.translate(-50, -62);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const skin = '#d9b99b', dark = '#a8845f', tealc = '#4fd1c5';
+  // palma
+  g.fillStyle = skin; g.strokeStyle = '#6b4f38'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(28, 62, 44, 42, 10); g.fill(); g.stroke();
+  const bx = [34, 46, 58, 70], sp = r.spread ? [-12, -3, 8, 18] : [0, 0, 0, 0];
+  // dedos esticados / curvos / dobrados
+  r.f.forEach((s, i) => {
+    let ang = sp[i] * Math.PI / 180; if (r.cross) ang = (i === 0 ? 10 : -10) * Math.PI / 180;
+    const x0 = bx[i] - 1 + (i === 3 ? -4 : 0), y0 = 64;
+    const path = () => { g.beginPath(); g.moveTo(x0, y0); if (s === 2) g.lineTo(x0 + Math.sin(ang) * 42, y0 - Math.cos(ang) * 42 * (i === 3 ? .8 : 1)); else g.quadraticCurveTo(x0, y0 - 30, x0 + 8, y0 - 24); };
+    if (s >= 1) { g.strokeStyle = '#6b4f38'; g.lineWidth = 10.5; path(); g.stroke(); g.strokeStyle = skin; g.lineWidth = 8; path(); g.stroke(); }
+    else { g.fillStyle = dark; g.beginPath(); g.arc(x0, y0 + 2, 5, 0, 7); g.fill(); }
+  });
+  // anel (dedo tocando o polegar)
+  if (r.t === 'ok') {
+    g.strokeStyle = tealc; g.lineWidth = 2.5; g.beginPath(); g.arc(r.ring === 1 ? 52 : (r.ring === 0 ? 38 : 46), r.ring === 1 ? 54 : 50, 9, 0, 7); g.stroke();
+  }
+  // polegar
+  g.strokeStyle = skin; g.lineWidth = 10;
+  const th = () => { g.beginPath(); thPath(); };
+  const thPath = () => {
+  if (r.t === 'out') { g.moveTo(32, 92); g.lineTo(8, 78); }
+  else if (r.t === 'side') { g.moveTo(31, 92); g.lineTo(24, 66); }
+  else if (r.t === 'across') { g.moveTo(31, 92); g.lineTo(60, 84); }
+  else if (r.t === 'under') { g.moveTo(34, 98); g.lineTo(52, 98); }
+  else if (r.t === 'curve') { g.moveTo(31, 92); g.quadraticCurveTo(14, 84, 22, 66); }
+  else { g.moveTo(31, 92); g.lineTo(42, 66); } };
+  g.strokeStyle = '#6b4f38'; g.lineWidth = 12; th(); g.stroke(); g.strokeStyle = skin; g.lineWidth = 9.5; th(); g.stroke();
+  g.restore();
+  if (/movimento/.test(r.d)) { g.fillStyle = '#f6ad55'; g.font = '600 15px system-ui'; g.fillText('↻ movimento', 8, H - 10); }
+}
+function showRef(l) {
+  const lb = $('refL'); if (!lb) return;
+  lb.textContent = l ? nome(l) : '';
+  drawRef($('refCv'), l);
+  $('refTxt').textContent = (REF[l] && REF[l].d) || (l ? 'Sinal combinado por você. O sistema aprende o que for mostrado.' : 'Escolha uma letra.');
+  let on = false; try { on = (wiz.on || !!capture) && !!REF[l]; } catch (e) {}
+  let on2 = on; try { on2 = on || (!!dinRec && !!REF[l]); } catch (e) {}
+  const m = $('refMini'); m.hidden = !on2; if (on2) drawRef(m, l);
+  clearInterval(refTimer);
+  if (REF[l] && REF[l].anim) {   // sinais com movimento: o desenho se mexe
+    const t0 = performance.now();
+    refTimer = setInterval(() => { const ph = ((performance.now() - t0) / 2400) % 1; drawRef($('refCv'), l, ph); if (!m.hidden) drawRef(m, l, ph); }, 50);
+  }
+}
+
+drawLoss([]);
+/* =============== ASSISTENTE DO ALFABETO =============== */
+const wiz = { on: false, list: [], i: 0, timer: null, var: null };
+const RODADAS = [
+  'com a mão mais PERTO da câmera',
+  'com a mão mais LONGE da câmera',
+  'com a mão um pouco INCLINADA para a esquerda',
+  'com a mão um pouco INCLINADA para a direita',
+  'com a OUTRA mão (se conseguir) ou em outro ângulo',
+  'com a mão mais ALTA no quadro, depois mais BAIXA',
+  'de forma RELAXADA, do jeito que você faria na pressa'
+];
+function wizardStart(rodada) {
+  if (!cameraOk || wiz.on || capture || training) return;
+  wiz.var = (typeof rodada === 'number') ? RODADAS[rodada] : null;
+  if (rodada === 'cmd') { wiz.list = ['_LIMPAR']; wiz.cmd = true; }
+  else { wiz.cmd = false; wiz.list = wiz.var ? ALFABETO.filter(l => count(l) >= 1) : ALFABETO.filter(l => !$('wizSkip').checked || count(l) < MIN_TREINO); }
+  if (!wiz.list.length) { $('wizInfo').textContent = wiz.var ? 'Grave o alfabeto básico primeiro.' : 'Todas as letras já estão treinadas.'; return; }
+  wiz.on = true; wiz.i = 0; $('wizIniciar').hidden = true; $('wizReforco').disabled = true; $('wizParar').hidden = false; wizardStep();
+}
+function wizardStep() {
+  if (!wiz.on) return;
+  if (wiz.i >= wiz.list.length) { wizardStop(true); return; }
+  const l = wiz.list[wiz.i]; active = l; renderChips(); camTarget(l);
+  $('wizInfo').textContent = (wiz.cmd ? 'Gesto ' : 'Letra ') + (wiz.i + 1) + ' de ' + wiz.list.length + ': faça o sinal de ' + nome(l) + (wiz.var ? ' ' + wiz.var + '.' : ' e mantenha a mão à vista.');
+  startCapture(l, wiz.var ? 3 : 4);
+}
+function wizardStop(done) {
+  if (!wiz.on) return;
+  wiz.on = false; clearTimeout(wiz.timer); clearInterval(capTimer); camTarget(null);
+  if (!done) { capture = null; $('cd').hidden = true; }
+  $('wizIniciar').hidden = false; $('wizParar').hidden = true; $('wizReforco').disabled = false; $('wizCmd').disabled = false; renderChips();
+  $('wizInfo').textContent = done ? 'Alfabeto gravado. Treinando a rede…' : 'Assistente interrompido.';
+  if (done) {
+    trainNet();
+    if (wiz.cmd) {   // depois do LIMPAR (parado), grava os dois gestos com movimento: FALAR e APAGAR
+      const espera = setInterval(() => { if (!training) { clearInterval(espera); dinQueue = ['_FALAR', '_APAGAR']; dinReps = 6; dinNext(); } }, 400);
+    }
+  }
+}
+let dinQueue = [];
+function dinNext() {
+  if (!dinQueue.length) { dinReps = 8; renderDin(); return; }
+  dinActive = dinQueue.shift(); renderDin(); try { showRef(dinActive); } catch (e) {}
+  $('dinInfo').textContent = 'Agora o gesto ' + nome(dinActive) + ': faça o movimento mostrado no desenho, 6 vezes.';
+  setTimeout(dinRecord, 1800);
+}
+function aplicaSensib() { const s = SENSIB[Number($('sensib').value)]; HOLD_MS = s.hold; LIMIAR = s.lim; STILL_THR = s.still; try { localStorage.setItem('libras-sensib', $('sensib').value); } catch (e) {} }
+try { const v = localStorage.getItem('libras-sensib'); if (v && SENSIB[Number(v)]) $('sensib').value = v; } catch (e) {}
+$('sensib').addEventListener('change', aplicaSensib); aplicaSensib();
+$('wizIniciar').addEventListener('click', () => wizardStart());
+$('wizCmd').addEventListener('click', () => wizardStart('cmd'));
+$('wizReforco').addEventListener('click', () => wizardStart(Number($('wizRodada').value)));
+$('wizParar').addEventListener('click', () => wizardStop(false));
+
+/* =============== LETRAS COM MOVIMENTO =============== */
+function loadDin() { try { samplesDin = JSON.parse(localStorage.getItem(KEY_DIN) || '{}') || {}; } catch (e) { samplesDin = {}; } }
+function saveDin() { if (false) try { localStorage.setItem(KEY_DIN, JSON.stringify(samplesDin, (k, v) => typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)); } catch (e) {} dynCache.clear(); }
+const dynCache = new Map();
+const dinCount = l => (samplesDin[l] || []).length;
+function renderDin() {
+  const labels = Array.from(new Set([...DIN_SUG, ...Object.keys(samplesDin)]));
+  const box = $('dinChips'); box.innerHTML = '';
+  labels.forEach(l => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (l === dinActive ? ' on' : '') + (dinCount(l) < 20 ? ' low' : '');
+    b.innerHTML = '<b></b><small></small>'; b.firstChild.textContent = nome(l); b.lastChild.textContent = Math.floor(dinCount(l) / 7) + ' rep.';
+    b.addEventListener('click', () => { dinActive = l; renderDin(); try { showRef(l); } catch (e) {} });
+    box.appendChild(b);
+  });
+  const ready = Object.keys(samplesDin).filter(l => dinCount(l) >= 20).length;
+  $('dinGravar').disabled = !cameraOk || !!dinRec || !!capture || training; $('dinGravar').textContent = 'Gravar ' + dinReps + ' repetições de ' + nome(dinActive);
+  $('dinTreinar').disabled = !ready || dinTraining;
+}
+function dinRecord() {
+  if (dinRec || capture || training || !cameraOk) return;
+  dinRec = { label: dinActive, rep: 0, reps: dinReps, frames: [], t0: 0, timer: null, end: null };
+  $('dinGravar').hidden = true; $('dinParar').hidden = false; dinRepStart();
+}
+function dinRepStart() {
+  const r = dinRec; if (!r) return;
+  r.rep++; if (r.rep > r.reps) { dinStop(true); return; }
+  camTarget(CMD_ICONE[r.label] || r.label); setIA('', 'Movimento ' + nome(r.label) + ' · repetição ' + r.rep + '/' + r.reps);
+  try { showRef(r.label); } catch (e) {}
+  $('dinInfo').textContent = 'Repetição ' + r.rep + ' de ' + r.reps + ': quando o sinal tocar, faça o movimento completo de ' + nome(r.label) + '.';
+  let n = 3; $('cd').hidden = false; $('cd').textContent = n;
+  r.timer = setInterval(() => {
+    n--; if (n > 0) { $('cd').textContent = n; return; }
+    clearInterval(r.timer); $('cd').hidden = true; r.frames = []; r.t0 = performance.now(); sBip();
+    r.end = setTimeout(dinRepEnd, 2400);
+  }, 800);
+}
+function dinRepEnd() {
+  const r = dinRec; if (!r) return;
+  const fr = r.frames.slice(), list = samplesDin[r.label] || (samplesDin[r.label] = []); let added = 0;
+  for (let te = r.t0 + 1200; te <= r.t0 + 2400; te += 200) { const f = windowFeatures(fr, te); if (f) { list.push(Array.from(f)); added++; } }
+  while (list.length > 420) list.shift();
+  if (!added) { r.rep--; $('dinInfo').textContent = 'Não vi a mão durante o movimento. Repita.'; }
+  saveDin(); renderDin(); setTimeout(dinRepStart, 900);
+}
+function dinStop(done) {
+  const r = dinRec; if (!r) return;
+  clearInterval(r.timer); clearTimeout(r.end); dinRec = null; camTarget(null); $('cd').hidden = true;
+  $('dinGravar').hidden = false; $('dinParar').hidden = true; renderDin();
+  $('dinInfo').textContent = done ? 'Movimentos gravados. Treinando…' : 'Gravação interrompida.';
+  if (done && dinQueue.length) { dinNext(); return; }
+  if (!done) dinQueue = [];
+  if (done) { setIA('ok', 'Movimentos gravados'); dinReps = 8; dinTrain(); }
+}
+function dinTrain() {
+  if (dinTraining) return;
+  const labels = Object.keys(samplesDin).filter(l => dinCount(l) >= 20).sort();
+  if (!labels.length) { $('dinInfo').textContent = 'Grave pelo menos uma letra com 8 repetições.'; return; }
+  const X = [], y = [];
+  // só vale como "movimento" a janela em que a mão realmente se mexe (descarta o trecho em que ela já parou)
+  dinThr = {};
+  labels.forEach((l, i) => {
+    const arr = samplesDin[l].map(sm => Float32Array.from(sm)), mv = arr.map(windowMove);
+    const ord = mv.slice().sort((a, b) => a - b), ref = ord[Math.floor(ord.length * 0.75)] || 0;
+    dinThr[l] = Math.max(0.5, ref * 0.45);
+    arr.forEach((f, n) => { if (mv[n] >= dinThr[l]) { X.push(f); y.push(i); } });
+  });
+  if (!X.length) { $('dinInfo').textContent = 'Os movimentos gravados ficaram muito parados. Grave de novo, fazendo o movimento bem marcado.'; return; }
+  const shp = [];
+  Object.keys(samples).forEach(l => (samples[l] || []).slice(0, 12).forEach(sm => { const a = new Float32Array(42); for (let i = 0; i < 21; i++) { a[i * 2] = sm[i * 3]; a[i * 2 + 1] = sm[i * 3 + 1]; } shp.push(a); }));
+  // a própria mão do sinal, parada, também NÃO é o movimento
+  labels.forEach(l => samplesDin[l].slice(0, 24).forEach(sm => { for (const k of [0, 3, 6]) shp.push(Float32Array.from(sm.slice(k * 44, k * 44 + 42))); }));
+  const r0 = mulberry32(5), nIdle = Math.max(80, Math.round(X.length * 0.8));
+  for (let i = 0; i < nIdle; i++) {
+    const base = shp.length ? shp[Math.floor(r0() * shp.length)] : Float32Array.from(samplesDin[labels[0]][0].slice(0, 42));
+    X.push(idleWindow(base, r0)); y.push(labels.length);
+  }
+  // mão se ajeitando até um formato (ex.: indo fazer o I) também NÃO é movimento
+  if (shp.length > 1) for (let i = 0; i < Math.round(nIdle * 0.8); i++) {
+    X.push(transitionWindow(shp[Math.floor(r0() * shp.length)], shp[Math.floor(r0() * shp.length)], r0)); y.push(labels.length);
+  }
+  const cls = labels.concat(['_parado']), model = new MLP(DIN_FEAT, 48, cls.length, 21), rnd = mulberry32(77);
+  let ep = 0; const total = 120; dinTraining = true; dinNet = null; renderDin();
+  (function step() {
+    let loss = 0; for (let k = 0; k < 2 && ep < total; k++) { loss = model.trainEpoch(X, y, rnd, 0.005, 32, false); ep++; }
+    $('dinInfo').textContent = 'Treinando movimentos… ' + ep + '/' + total + ' · erro ' + loss.toFixed(3);
+    if (ep < total) { requestAnimationFrame(step); return; }
+    dinNet = model; dinClasses = cls; dinTraining = false; renderDin(); renderGame(); vozRenderChips();
+    $('dinInfo').textContent = 'Pronto: ' + labels.join(', ') + '. Faça o movimento na aba Soletrar para testar.';
+  })();
+}
+let dinLast = 0, dinCand = null, dinConf = 0, dinLock = 0, dinThr = {};
+function dinStep(now) {
+  if (!dinNet || dinRec || capture || now - dinLast < 120 || now < dinLock) return;
+  dinLast = now;
+  const f = windowFeatures(frames, now); if (!f) return;
+  const p = dinNet.predict(f); let k = 0; for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i;
+  const label = dinClasses[k], conf = p[k];
+  // movimento só vale se a janela inteira realmente tem movimento (mão parada ou se ajeitando não conta)
+  if (label === '_parado' || conf < 0.92 || windowMove(f) < (dinThr[label] || 0.5)) { dinCand = null; dinConf = 0; return; }
+  if (dinCand === label) dinConf++; else { dinCand = label; dinConf = 1; }
+  if (dinConf >= 3) { dinCand = null; dinConf = 0; dinLock = now + 1600; frames.length = 0; dinHit(label, now); }
+}
+function dinHit(label, now) {
+  showReco(label, 1); $('confText').textContent = 'Movimento reconhecido: ' + label;
+  if (tab === 'soletrar') acceptLetter(label);
+  else if (tab === 'jogo' && game.state === 'play' && label === game.target) gameHit(now);
+}
+// animação do sinal com movimento (aba Voz → Libras): média das janelas gravadas
+function dynMean(l) {
+  if (dynCache.has(l)) return dynCache.get(l);
+  const arr = samplesDin[l]; let out = null;
+  if (arr && arr.length) {
+    const m = new Float32Array(DIN_FEAT); arr.forEach(sm => { for (let i = 0; i < DIN_FEAT; i++) m[i] += sm[i]; }); for (let i = 0; i < DIN_FEAT; i++) m[i] /= arr.length;
+    const poses = [], off = []; let mx = 0, my = 0; const S = DIN_FEAT / 44;
+    for (let k = 0; k < S; k++) { mx += m[k * 44 + 42]; my += m[k * 44 + 43]; } mx /= S; my /= S;
+    for (let k = 0; k < S; k++) {
+      const p = new Float32Array(63); for (let i = 0; i < 21; i++) { p[i * 3] = m[k * 44 + i * 2]; p[i * 3 + 1] = m[k * 44 + i * 2 + 1]; }
+      poses.push(p); off.push([m[k * 44 + 42] - mx, m[k * 44 + 43] - my]);
+    }
+    out = { poses, off };
+  }
+  dynCache.set(l, out); return out;
+}
+const hasSign = c => !!meanPose(c) || !!dynMean(c);
+$('dinGravar').addEventListener('click', dinRecord);
+$('dinParar').addEventListener('click', () => dinStop(false));
+$('dinTreinar').addEventListener('click', dinTrain);
+$('dinApagar').addEventListener('click', () => { delete samplesDin[dinActive]; saveDin(); dinNet = null; dinClasses = []; renderDin(); if (Object.keys(samplesDin).length) dinTrain(); });
+
+/* =============== MODO COFRE =============== */
+let cofreTimer = null;
+function cofreEnvia() { send($('cofreOn').checked ? 'T,1' : 'T,0'); }
+$('cofreOn').addEventListener('change', cofreEnvia);
+function cofreShow(txt, cls) { const e = $('cofreBig'); e.className = 'cofreBig ' + cls; e.textContent = txt; e.hidden = false; clearTimeout(cofreTimer); cofreTimer = setTimeout(() => { e.hidden = true; }, 3200); }
+function cofreCheck() {
+  if (!$('cofreOn').checked) return;
+  const senha = vozNormalize($('cofreSenha').value).replace(/ /g, '');
+  if (!senha) { $('cofreMsg').textContent = 'Defina uma senha primeiro.'; return; }
+  const w = word.replace(/ /g, '').replace(/Ç/g, 'C');
+  if (w === senha) {
+    cofreShow('ACESSO LIBERADO', 'ok'); $('cofreMsg').textContent = 'Senha correta!';
+    sWin(); send('P,ACESSO LIBERADO'); send('O'); word = ''; $('palavra').textContent = '';
+    setTimeout(cofreEnvia, 4500);
+  } else if (w.length >= senha.length) {
+    cofreShow('SENHA INCORRETA', 'bad'); $('cofreMsg').textContent = 'Tente de novo.';
+    sBad(); send('F'); word = ''; $('palavra').textContent = ''; send('C');
+  }
+}
+
+/* =============== abas e botões ================ */
+function setTab(t) {
+  if (t === tab) return;
+  if (tab === 'jogo' && game.state !== 'idle' && game.state !== 'end') gameStop();
+  if (tab === 'voz') vozStop();
+  if (tab === 'aprender') { wizardStop(false); dinStop(false); }
+  tab = t; document.body.dataset.tab = t;
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  if (t === 'jogo') renderGame();
+  if (t === 'voz') { poseCache.clear(); vozRenderChips(-1); drawAvatar(null); $('avLetra').textContent = ''; $('avNote').textContent = 'Fale uma palavra ou digite ao lado'; }
+  if (t === 'soletrar') $('warnSoletrar').hidden = !!net;
+  resetReco();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+$('btnGravar').addEventListener('click', () => startCapture());
+$('btnTreinar').addEventListener('click', trainNet);
+$('btnApagarLetra').addEventListener('click', () => { delete samples[active]; saveSamples(); renderChips(); });
+$('btnAdd').addEventListener('click', () => { const v = $('novaLetra').value.trim().toUpperCase(); if (/^[A-Z0-9Ç]$/.test(v)) { if (!samples[v]) samples[v] = []; active = v; $('novaLetra').value = ''; renderChips(); } });
+$('btnArduino').addEventListener('click', connectArduino);
+$('btnFull').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); });
+$('btnBackup').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ v: 3, estatico: samples, movimento: samplesDin })], { type: 'application/json' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'libras-exemplos.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$('fileBackup').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { try { const d = JSON.parse(r.result); if (d && typeof d === 'object') {
+      const est = d.estatico || d, mov = d.movimento || {};
+      Object.keys(est).forEach(k => { if (Array.isArray(est[k])) samples[k] = est[k]; });
+      Object.keys(mov).forEach(k => { if (Array.isArray(mov[k])) samplesDin[k] = mov[k]; });
+      saveSamples(); saveDin(); renderChips(); renderDin(); trainNet(); if (Object.keys(samplesDin).length) dinTrain(); } } catch (err) { $('trainInfo').textContent = 'Arquivo inválido.'; } };
+  r.readAsText(f);
+});
+
+/* =============== versão dos alunos: modelo pronto =============== */
+let nomeAluno = '';
+function entrarComNome() {
+  return new Promise(res => {
+    let n = ''; try { n = sessionStorage.getItem('aluno-nome') || ''; } catch (e) {}
+    const fim = nome => { nomeAluno = nome; try { sessionStorage.setItem('aluno-nome', nome); } catch (e) {} $('nomeGate').hidden = true; $('gNome').value = nome; res(); };
+    if (n) { fim(n); return; }
+    $('nomeForm').addEventListener('submit', e => { e.preventDefault(); const v = $('nomeAluno').value.replace(/[^\p{L}\p{N} ._-]/gu, '').trim(); if (v) fim(v.slice(0, 14)); });
+    $('nomeAluno').focus();
+  });
+}
+function rede(m, nIn, mao) {
+  const r = mao ? MLP.paraMao(m.nHid, m.nOut, 1) : new MLP(nIn, m.nHid, m.nOut, 1);
+  r.W1.set(m.W1); r.b1.set(m.b1); r.W2.set(m.W2); r.b2.set(m.b2); return r;
+}
+async function carregaModelo() {
+  const m = await (await fetch('./modelo.json', { cache: 'no-cache' })).json();
+  samples = m.samples || {}; samplesDin = m.samplesDin || {}; dynCache.clear();
+  classes = m.classes; net = rede(m.net, 0, true);
+  dinClasses = m.dinClasses || []; dinThr = m.dinThr || {};
+  dinNet = m.dinNet ? rede(m.dinNet, DIN_FEAT, false) : null;
+}
+
+/* =============== partida =============== */
+(async function init() {
+  await entrarComNome(); await carregaModelo(); renderChips(); renderDin(); renderGame(); setTelao(-1);
+  pill('pArd', ''); setIA('warn', 'Carregando IA');
+  let camFail = false;
+  if (DEMO) { camFail = true; $('msgcam').textContent = 'Modo demonstração (sem câmera)'; cameraOk = true; pill('pCam', 'warn', 'Demo'); }
+  else { try { await startCamera(); } catch (e) { camFail = true; } }
+  if (!camFail) {
+    try { await loadModel(); } catch (e) { setIA('err', 'Erro ao carregar a IA'); $('msgcam').hidden = false; $('msgcam').textContent = 'Falha ao carregar o modelo: ' + (e && e.message ? e.message : e); }
+  } else setIA('err', 'Sem câmera');
+  if (landmarker) { setIA('ok', 'IA pronta'); requestAnimationFrame(loop); }
+  renderChips(); renderDin();
+  setIA('ok', 'IA pronta · ' + (classes.length + dinClasses.length - 1) + ' sinais');
+})();
+
+// Exporta o modelo treinado (para a versão dos alunos). Treina antes, se preciso, e envia para um endereço local.
+async function exportModelo(url) {
+  const espera = async f => { for (let i = 0; i < 400 && !f(); i++) await new Promise(r => setTimeout(r, 100)); };
+  if (!net) { trainNet(); await espera(() => net); }
+  if (!dinNet && Object.keys(samplesDin).length) { dinTrain(); await espera(() => dinNet); }
+  const r4 = a => Array.from(a, v => Math.round(v * 10000) / 10000);
+  const pack = m => ({ nIn: m.nIn, nHid: m.nHid, nOut: m.nOut, W1: r4(m.W1), b1: r4(m.b1), W2: r4(m.W2), b2: r4(m.b2) });
+  const sub = (obj, n) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, v.filter((_, i) => i % Math.max(1, Math.floor(v.length / n)) === 0).slice(0, n).map(r4)]));
+  const out = {
+    v: 1, feito: new Date().toISOString(),
+    classes, net: pack(net),
+    dinClasses, dinNet: dinNet ? pack(dinNet) : null, dinThr,
+    samples: sub(samples, 12), samplesDin: sub(samplesDin, 10)
+  };
+  const txt = JSON.stringify(out);
+  if (url) await fetch(url, { method: 'POST', body: txt });
+  return { bytes: txt.length, classes: classes.length, dinClasses };
+}
+window.__app = { exportModelo, wiz, setDinReps: n => { dinReps = n; }, get dinRec() { return dinRec; }, forceCam() { cameraOk = true; renderGame(); renderChips(); renderDin(); }, handleHand, get dinNet() { return dinNet; }, samplesDin, dinTrain, dinStep, frames, acceptLetter, get word() { return word; }, dynMean, setTab, startSpelling, gameFeed: (l, c) => gameFeed(l, c, performance.now()), game, CFG, send, log, samples, get net() { return net; }, get tab() { return tab; }, meanPose, trainNet };
+</script>
+</body>
+</html>
