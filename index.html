@@ -666,7 +666,8 @@ function resetReco() { $('letra').textContent = '–'; $('confText').textContent
 /* ---- soletrar ---- */
 let holdLabel = null, holdStart = 0, locked = null;
 function spellStep(label, conf, now) {
-  if (conf >= LIMIAR) {
+  const lim = ehCmd(label) ? Math.max(LIMIAR, 0.93) : LIMIAR;   // comandos (apagar, limpar, falar) exigem mais certeza
+  if (conf >= lim) {
     if (locked && label !== locked) locked = null;
     if (!locked) {
       if (label !== holdLabel) { holdLabel = label; holdStart = now; }
@@ -1109,7 +1110,7 @@ function wizardStart(rodada) {
   if (!cameraOk || wiz.on || capture || training) return;
   wiz.var = (typeof rodada === 'number') ? RODADAS[rodada] : null;
   if (rodada === 'cmd') { wiz.list = ['_FALAR', '_APAGAR', '_LIMPAR']; wiz.cmd = true; }
-  else { wiz.cmd = false; wiz.list = wiz.var ? ALFABETO.filter(l => count(l) >= 1) : ALFABETO.filter(l => !$('wizSkip').checked || count(l) < MIN_TREINO); }
+  else { wiz.cmd = false; wiz.list = wiz.var ? [...ALFABETO, '_', '_FALAR', '_APAGAR', '_LIMPAR'].filter(l => count(l) >= 1) : ALFABETO.filter(l => !$('wizSkip').checked || count(l) < MIN_TREINO); }
   if (!wiz.list.length) { $('wizInfo').textContent = wiz.var ? 'Grave o alfabeto básico primeiro.' : 'Todas as letras já estão treinadas.'; return; }
   wiz.on = true; wiz.i = 0; $('wizIniciar').hidden = true; $('wizReforco').disabled = true; $('wizParar').hidden = false; wizardStep();
 }
