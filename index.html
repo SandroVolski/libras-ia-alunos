@@ -145,6 +145,49 @@ input[type=range]{accent-color:var(--ac);flex:1}
 .cofreBig.ok{color:var(--ok)} .cofreBig.bad{color:var(--bad)}
 .check{display:flex;gap:8px;align-items:center;cursor:pointer;color:var(--mu);font-size:.92rem}
 .check input{width:18px;height:18px;accent-color:var(--ac)}
+
+/* ---------- celular: câmera e palavra sempre visíveis, abas embaixo ---------- */
+.miniWord{display:none}
+@media (max-width:720px){
+  html{-webkit-text-size-adjust:100%}
+  body{font-size:15px;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .top{position:static;padding:10px 14px;gap:8px 12px;flex-wrap:nowrap;justify-content:space-between}
+  .brand{gap:10px}
+  .logo{width:36px;height:36px}
+  .brand h1{font-size:1.1rem}
+  .tag{font-size:.62rem;padding:2px 6px}
+  .status{gap:6px;flex-wrap:nowrap;margin-left:auto}
+  .status .pill{font-size:.72rem;padding:4px 9px}
+  #btnFull,#btnArduino{display:none}
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;border:0;border-top:1px solid var(--line);border-radius:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(8,13,18,.96);justify-content:space-around;flex-wrap:nowrap;gap:6px}
+  .tab{flex:1;padding:13px 4px;font-size:.88rem;text-align:center;border-radius:12px}
+  main{padding:0 12px 20px;gap:12px}
+  main>section:first-child{position:sticky;top:0;z-index:15;background:var(--bg);margin-inline:-12px;padding:8px 12px 10px;border-bottom:1px solid var(--line)}
+  #camCard,#recoCard,#avatarCard{padding:8px;border-radius:14px}
+  #recoCard{margin-top:8px}
+  #camCard .viewport{width:min(100%,calc(32vh * 4 / 3));border-radius:12px}
+  .reco{margin-top:0;gap:12px}
+  .ring{width:64px;height:64px}
+  .ring span{width:52px;height:52px;font-size:1.9rem}
+  .reco .txt h3{display:none}
+  #confText{font-size:.85rem;margin-bottom:5px}
+  .bar{height:6px}
+  body[data-tab="soletrar"] .miniWord{display:block;margin-top:6px;font-size:1.5rem;font-weight:800;letter-spacing:.12em;line-height:1.2;min-height:1.2em;overflow-wrap:anywhere;color:var(--tx)}
+  .miniWord:empty::before{content:"Soletre uma palavra";font-size:.85rem;font-weight:400;letter-spacing:0;color:var(--mu)}
+  .p-soletrar .word{display:none}
+  .card{padding:14px 16px}
+  .btn{min-height:44px}
+  input[type=text],select{font-size:16px;min-height:44px}
+  .msgcam{font-size:.8rem;padding:6px 10px}
+  .countdown{font-size:6rem}
+  .camTarget{font-size:3.2rem;left:8px;top:8px;padding:2px 14px}
+  .gTarget{font-size:6rem}
+  .avatarWrap{max-height:40vh}
+  .avatarLetter{font-size:3.4rem;left:10px;top:6px}
+  .letterRow{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;margin-top:8px;padding-bottom:2px}
+  .lc{flex:none;min-width:34px;height:38px}
+  .cofreBig{font-size:1.9rem}
+}
 .p-aprender,#btnArduino,#pArd,#btnFull,.card:has(#cofreOn){display:none!important}
 .nomeGate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(5,10,14,.92);padding:20px}
 .nomeGate form{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px}
@@ -221,6 +264,7 @@ input[type=range]{accent-color:var(--ac);flex:1}
           <h3>Reconhecimento ao vivo</h3>
           <div id="confText">Mostre uma letra para a câmera</div>
           <div class="bar"><i id="confBar"></i></div>
+          <div class="miniWord" id="palavraMini" aria-live="polite"></div>
         </div>
       </div>
     </div>
@@ -246,7 +290,7 @@ input[type=range]{accent-color:var(--ac);flex:1}
         <label class="check"><input type="checkbox" id="wizSkip" checked> Pular letras que já estão treinadas</label>
         <div class="row" style="margin-top:12px"><button class="btn pri" id="wizIniciar" disabled>Treinar o alfabeto</button><button class="btn" id="wizParar" hidden>Parar</button></div>
         <div class="row" style="margin-top:10px"><button class="btn" id="wizCmd" disabled>Treinar os 3 gestos de comando</button></div>
-        <div class="small" style="margin-top:6px">Limpar tudo (polegar para baixo, parado), depois Falar (3 toquinhos na boca) e Apagar (3 tapinhas para trás), os dois com movimento. Espaço continua sendo a mão aberta.</div>
+        <div class="small" style="margin-top:6px">Falar (joinha, polegar para cima), Apagar (indicador e dedo mínimo esticados) e Limpar (polegar para baixo), todos com a mão parada. Espaço continua sendo a mão aberta.</div>
         <div id="wizInfo" class="small" style="margin-top:8px"></div>
       </div>
       <div class="card">
@@ -321,7 +365,7 @@ input[type=range]{accent-color:var(--ac);flex:1}
           <select id="vozSel" aria-label="Voz do computador" style="margin-top:8px;max-width:100%;background:var(--s2);color:inherit;border:1px solid var(--line);border-radius:11px;padding:9px 12px"></select>
           <p class="small" style="margin-top:6px">Para a voz mais natural, abra a página no <b>Microsoft Edge</b> e escolha uma voz “Natural” (Francisca, Antonio ou Thalita). No Chrome, a “Google português do Brasil” também é boa.</p>
         </details>
-        <p class="small" style="margin-top:10px">Gestos de comando: <b>ESPAÇO</b> mão aberta · <b>APAGAR</b> ⌫ 3 tapinhas para trás · <b>LIMPAR</b> ✕ polegar para baixo · <b>FALAR</b> ▶ 3 toquinhos na boca.</p>
+        
         <p class="warn" id="warnSoletrar" hidden>Treine a IA na aba “Aprender” primeiro.</p>
       </div>
       <div class="card">
@@ -412,12 +456,12 @@ import { frameInfo, windowFeatures, motion as movimento, idleWindow, windowMove,
 const $ = id => document.getElementById(id);
 const KEY = 'libras-amostras-v1';
 const ALFABETO = ['A','B','C','D','E','F','G','I','K','L','M','N','O','P','Q','R','S','T','U','V','W','Y'];
-const DIN_SUG = ['H','J','X','Z','Ç','_FALAR','_APAGAR'];
+const DIN_SUG = ['H','J','X','Z','Ç'];
 const CMDS = ['_APAGAR', '_LIMPAR', '_FALAR'];                       // gestos de comando (não viram letra)
 const CMD_NOME = { _APAGAR: 'APAGAR', _LIMPAR: 'LIMPAR', _FALAR: 'FALAR' };
 const CMD_ICONE = { _APAGAR: '⌫', _LIMPAR: '✕', _FALAR: '▶' };
 const ehCmd = l => CMDS.includes(l);
-const SUG = [...ALFABETO, '_', '_LIMPAR'];
+const SUG = [...ALFABETO, '_', '_FALAR', '_APAGAR', '_LIMPAR'];
 const KEY_DIN = 'libras-movimento-v1';
 const ard = l => l === 'Ç' ? 'C' : l;                                   // o display não tem Ç
 const ardWord = w => w.replace(/Ç/g, 'C').replace(/[^A-Z0-9 ]/g, '');
@@ -987,8 +1031,8 @@ const REF = {
   X: { t: 'across', f: [1,0,0,0], d: 'Indicador em gancho; mexa o dedo dobrando e esticando. (movimento)' },
   Z: { t: 'across', f: [2,0,0,0], d: 'Indicador esticado desenhando um Z no ar. (movimento)' },
   _: { t: 'out', f: [2,2,2,2], spread: 1, d: 'Mão aberta, dedos afastados. Separa as palavras.' },
-  _FALAR: { t: 'across', f: [1,1,1,1], rot: 0, anim: p => [0, -10 * Math.abs(Math.sin(p * Math.PI * 3))], d: '3 toquinhos na boca, como quem fala (movimento rápido para a frente e para trás). O computador fala a palavra. (movimento)' },
-  _APAGAR: { t: 'across', f: [2,2,2,2], anim: p => [14 - 28 * ((p * 3) % 1), 0], d: '3 tapinhas no ar, como se empurrasse para TRÁS (da direita para a esquerda). Apaga a última letra. (movimento)' },
+  _FALAR: { t: 'up', f: [0,0,0,0], d: 'Joinha: mão fechada com o polegar para CIMA. O computador fala a palavra.' },
+  _APAGAR: { t: 'across', f: [2,0,0,2], d: 'Indicador e dedo mínimo esticados, os outros fechados (“chifrinhos”). Apaga a última letra.' },
   _LIMPAR: { t: 'up', f: [0,0,0,0], rot: 180, d: 'Polegar para BAIXO, como “errado”. Apaga a palavra toda.' }
 };
 REF.J.anim = p => [3 * Math.sin(p * 6.28), -8 + 16 * p];
@@ -1064,7 +1108,7 @@ const RODADAS = [
 function wizardStart(rodada) {
   if (!cameraOk || wiz.on || capture || training) return;
   wiz.var = (typeof rodada === 'number') ? RODADAS[rodada] : null;
-  if (rodada === 'cmd') { wiz.list = ['_LIMPAR']; wiz.cmd = true; }
+  if (rodada === 'cmd') { wiz.list = ['_FALAR', '_APAGAR', '_LIMPAR']; wiz.cmd = true; }
   else { wiz.cmd = false; wiz.list = wiz.var ? ALFABETO.filter(l => count(l) >= 1) : ALFABETO.filter(l => !$('wizSkip').checked || count(l) < MIN_TREINO); }
   if (!wiz.list.length) { $('wizInfo').textContent = wiz.var ? 'Grave o alfabeto básico primeiro.' : 'Todas as letras já estão treinadas.'; return; }
   wiz.on = true; wiz.i = 0; $('wizIniciar').hidden = true; $('wizReforco').disabled = true; $('wizParar').hidden = false; wizardStep();
@@ -1082,12 +1126,7 @@ function wizardStop(done) {
   if (!done) { capture = null; $('cd').hidden = true; }
   $('wizIniciar').hidden = false; $('wizParar').hidden = true; $('wizReforco').disabled = false; $('wizCmd').disabled = false; renderChips();
   $('wizInfo').textContent = done ? 'Alfabeto gravado. Treinando a rede…' : 'Assistente interrompido.';
-  if (done) {
-    trainNet();
-    if (wiz.cmd) {   // depois do LIMPAR (parado), grava os dois gestos com movimento: FALAR e APAGAR
-      const espera = setInterval(() => { if (!training) { clearInterval(espera); dinQueue = ['_FALAR', '_APAGAR']; dinReps = 6; dinNext(); } }, 400);
-    }
-  }
+  if (done) trainNet();
 }
 let dinQueue = [];
 function dinNext() {
@@ -1105,7 +1144,7 @@ $('wizReforco').addEventListener('click', () => wizardStart(Number($('wizRodada'
 $('wizParar').addEventListener('click', () => wizardStop(false));
 
 /* =============== LETRAS COM MOVIMENTO =============== */
-function loadDin() { try { samplesDin = JSON.parse(localStorage.getItem(KEY_DIN) || '{}') || {}; } catch (e) { samplesDin = {}; } }
+function loadDin() { try { samplesDin = JSON.parse(localStorage.getItem(KEY_DIN) || '{}') || {}; } catch (e) { samplesDin = {}; } delete samplesDin._FALAR; delete samplesDin._APAGAR; }
 function saveDin() { if (false) try { localStorage.setItem(KEY_DIN, JSON.stringify(samplesDin, (k, v) => typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)); } catch (e) {} dynCache.clear(); }
 const dynCache = new Map();
 const dinCount = l => (samplesDin[l] || []).length;
@@ -1319,6 +1358,13 @@ $('fileBackup').addEventListener('change', e => {
       saveSamples(); saveDin(); renderChips(); renderDin(); trainNet(); if (Object.keys(samplesDin).length) dinTrain(); } } catch (err) { $('trainInfo').textContent = 'Arquivo inválido.'; } };
   r.readAsText(f);
 });
+
+/* palavra soletrada também junto da câmera (celular) */
+(function () {
+  const a = $('palavra'), m = $('palavraMini'); if (!a || !m) return;
+  const sync = () => { m.textContent = a.textContent; };
+  new MutationObserver(sync).observe(a, { childList: true, characterData: true, subtree: true }); sync();
+})();
 
 /* =============== versão dos alunos: modelo pronto =============== */
 let nomeAluno = '';
